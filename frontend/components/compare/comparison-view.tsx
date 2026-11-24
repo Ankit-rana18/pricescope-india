@@ -84,6 +84,7 @@ function SourceChips({ c }: { c: Comparison }) {
       ))}
       <Badge tone="neutral">
         <MapPin aria-hidden /> {c.pincode}
+        {areaOf(c) && <span className="text-muted-foreground">· {areaOf(c)}</span>}
       </Badge>
       {c.data_mode === "DEMO" && (
         <Badge tone="warning">
@@ -92,6 +93,14 @@ function SourceChips({ c }: { c: Comparison }) {
       )}
     </div>
   );
+}
+
+/** "New Delhi, Delhi", or the postal circle when the directory has no district/state. */
+function areaOf(c: Comparison): string | null {
+  const l = c.location;
+  if (!l || l.directory_status !== "VERIFIED") return null;
+  const parts = [l.district, l.state].filter(Boolean);
+  return parts.length ? parts.join(", ") : l.circle;
 }
 
 function Summary({ c }: { c: Comparison }) {
@@ -129,8 +138,8 @@ function Summary({ c }: { c: Comparison }) {
           {s.cheaper_unverified && (
             <p className="text-muted-foreground mt-2 text-xs">
               {s.cheaper_unverified.marketplace_name} shows{" "}
-              {formatINR(s.cheaper_unverified.final_price)}, but delivery to {c.pincode} can&apos;t
-              be verified there.
+              {formatINR(s.cheaper_unverified.final_price)}, but{" "}
+              {s.cheaper_unverified.caveats.join(" and ")}.
             </p>
           )}
         </CardContent>
@@ -153,6 +162,8 @@ function Summary({ c }: { c: Comparison }) {
                 Only if you pay with that card. Offer terms apply.
                 {!s.best_with_card.delivery_verified &&
                   ` Delivery to ${c.pincode} can't be verified on ${s.best_with_card.marketplace_name}.`}
+                {!s.best_with_card.price_verified &&
+                  " Its price includes fees estimated from a published policy."}
               </p>
             </>
           ) : (
@@ -250,9 +261,10 @@ export function ComparisonView({ id }: { id: string }) {
       </section>
 
       <p className="text-muted-foreground text-xs">
-        Ranked: exact matches that are in stock with a complete final price, cheapest first. Results
-        whose delivery to your PIN code is verified come first. Probable and mismatched listings are
-        shown but never ranked.
+        Ranked: exact matches that are in stock with a complete final price, cheapest first. Fully
+        verified results (delivery to your PIN code confirmed and every fee reported by the
+        marketplace) come first; results with unverifiable delivery or fees estimated from a
+        published policy follow. Probable and mismatched listings are shown but never ranked.
       </p>
     </div>
   );

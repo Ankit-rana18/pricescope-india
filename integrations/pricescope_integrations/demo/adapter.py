@@ -237,3 +237,9 @@ def demo_source_links() -> list[dict[str, str]]:
                 )
                 break
     return out
+
+
+def demo_fee_policies() -> list[dict[str, Any]]:
+    """Fictional published fee policies for demo mode (never applied to live data)."""
+    policies: list[dict[str, Any]] = load_catalog().get("published_policies", [])
+    return policies

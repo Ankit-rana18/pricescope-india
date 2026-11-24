@@ -23,7 +23,8 @@ pack count and variant) with transparent final prices.
 | 3 | SSRF-safe short-link resolution; quantity / pack / variant normalization | ✅ done |
 | 4 | Adapter framework, demo + official-shell adapters, concurrent fetches (threads / Celery), matching, pricing, **card offers**, comparison page | ✅ done |
 | 5 | Matching engine: barcode check digits, model/brand normalisation + aliases, fuzzy titles, optional AI review | ✅ done |
-| 6–9 | See the implementation plan | pending |
+| 6 | PIN area from the India Post directory, published fee policies (estimated fees), location checks saved | ✅ done |
+| 7–9 | See the implementation plan | pending |
 
 ## Repository layout
 

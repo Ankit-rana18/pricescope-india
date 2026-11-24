@@ -304,3 +304,19 @@ def test_find_filters_orders_and_limits(store: TableStore) -> None:
         limit=2,
     )
     assert [r["item_price"] for r in rows] == [Decimal("275.00"), Decimal("265.00")]
+
+
+def test_estimated_fee_status_is_storable(store: TableStore) -> None:
+    cmp = _comparison(store)
+    row = store.insert(
+        "comparison_results",
+        {
+            "comparison_id": cmp["id"],
+            "marketplace_id": _marketplace(store),
+            "status": "OK",
+            "delivery_fee": Decimal("40"),
+            "delivery_fee_status": "ESTIMATED",
+        },
+    )
+    assert row["delivery_fee_status"] is ChargeStatus.ESTIMATED
+    assert store.get("comparison_results", row["id"])["delivery_fee"] == Decimal("40.00")

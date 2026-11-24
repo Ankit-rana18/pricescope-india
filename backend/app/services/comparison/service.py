@@ -38,13 +38,16 @@ from app.schemas.comparison import (
     ChargeView,
     ComparisonView,
     CouponView,
+    LocationView,
     PriceView,
     ResultView,
     SummaryView,
 )
 from app.services.comparison.evaluate import evaluate, listing_view, name_of, rank_and_summarize
 from app.services.comparison.executors import FetchExecutor, FetchJob
+from app.services.fee_policies import FeePolicySource
 from app.services.matching import SOURCE_REASON, MatchReviewer, ReviewBudget
+from app.services.pincode import PincodeDirectory, PincodeError, validate_pincode
 from app.services.url_parser import ParsedProductUrl
 from app.storage.base import TableStore
 from app.storage.errors import RowNotFound
@@ -79,6 +82,8 @@ class ComparisonService:
         source_policy: RetryPolicy | None = None,
         reviewer: MatchReviewer | None = None,
         reviews_per_comparison: int = 6,
+        directory: PincodeDirectory | None = None,
+        policies: FeePolicySource | None = None,
     ) -> None:
         self._store = store
         self._adapters = adapters
@@ -89,6 +94,8 @@ class ComparisonService:
         self._source_policy = source_policy or RetryPolicy(deadline_seconds=8)
         self._reviewer = reviewer
         self._reviews_per_comparison = reviews_per_comparison
+        self._directory = directory or PincodeDirectory()
+        self._policies = policies
         self._lock = threading.RLock()
         self._views: OrderedDict[str, ComparisonView] = OrderedDict()
         self._futures: dict[str, Future[None]] = {}
@@ -127,6 +134,7 @@ class ComparisonService:
             status=ComparisonStatus.RUNNING,
             data_mode=self._data_mode,
             pincode=pincode,
+            location=self._location(pincode),
             source_url=parsed.canonical_url,
             created_at=row["created_at"],
             source=listing_view(source),
@@ -162,6 +170,20 @@ class ComparisonService:
         if fut is not None:
             fut.result(timeout=timeout)
         return self.get(comparison_id)
+
+    def _location(self, pincode: str) -> LocationView | None:
+        try:
+            info = validate_pincode(pincode, self._directory)
+        except PincodeError:
+            return None
+        return LocationView(
+            postal_region=info.postal_region,
+            directory_status=info.directory_status.value,
+            district=info.district,
+            state=info.state,
+            division=info.division,
+            circle=info.circle,
+        )
 
     def statuses(self) -> list[Any]:
         return [self._adapters[m].status() for m in Marketplace]
@@ -214,7 +236,14 @@ class ComparisonService:
         budget = ReviewBudget(self._reviews_per_comparison)
         try:
             for fetch in self._executor.run(jobs):
-                result = evaluate(source, fetch, self._reviewer, budget)
+                result = evaluate(
+                    source,
+                    fetch,
+                    self._reviewer,
+                    budget,
+                    pincode=pincode,
+                    policies=self._policies,
+                )
                 with self._lock:
                     view = self._views[comparison_id]
                     view.results = [
@@ -330,12 +359,26 @@ class ComparisonService:
         ]
         ids = self._listing_ids(listings)
         now = datetime.now(UTC)
-        result_rows, history_rows = [], []
+        result_rows, history_rows, location_rows = [], [], []
         for r in view.results:
             listing_id = (
                 ids.get((r.listing.marketplace.value, r.listing.external_id)) if r.listing else None
             )
             result_rows.append(self._result_row(view.id, r, listing_id, now))
+            if listing_id and r.location_verification is not None:
+                location_rows.append(
+                    {
+                        "marketplace_product_id": listing_id,
+                        "pincode": view.pincode,
+                        "verification": r.location_verification,
+                        "serviceable": {"VERIFIED": True, "UNAVAILABLE": False}.get(
+                            r.location_verification.value
+                        ),
+                        "eta_text": r.eta_text,
+                        "data_mode": self._data_mode,
+                        "checked_at": r.checked_at or now,
+                    }
+                )
             if listing_id and r.price and r.price.item_price is not None:
                 history_rows.append(
                     {
@@ -351,6 +394,7 @@ class ComparisonService:
                 )
         self._store.insert_many("comparison_results", result_rows)
         self._store.insert_many("price_history", history_rows)
+        self._store.insert_many("location_checks", location_rows)
         self._store.update(
             "comparisons",
             view.id,
@@ -431,6 +475,7 @@ class ComparisonService:
             status=status,
             data_mode=DataMode(cmp["data_mode"]),
             pincode=cmp["pincode"],
+            location=self._location(cmp["pincode"]),
             source_url=cmp["source_url"],
             created_at=cmp["created_at"],
             completed_at=cmp.get("completed_at"),
@@ -473,6 +518,7 @@ class ComparisonService:
                 coupons=[CouponView(**c) for c in row.get("coupons") or []],
                 final_price=row.get("final_price"),
                 final_price_complete=bool(row.get("final_price_complete")),
+                final_price_estimated=any(row.get(f"{k}_status") == "ESTIMATED" for k in CHARGES),
                 assumptions=row.get("assumptions") or [],
                 **{
                     k: ChargeView(status=row[f"{k}_status"], amount=row.get(k), note=notes.get(k))

@@ -68,6 +68,9 @@ class PriceView(BaseModel):
         description="Total if complete; otherwise the known subtotal (unknown fees excluded)."
     )
     final_price_complete: bool
+    final_price_estimated: bool = Field(
+        False, description="Includes a fee estimated from a published policy, not confirmed."
+    )
     assumptions: list[str] = []
 
 
@@ -117,6 +120,9 @@ class ResultView(BaseModel):
     ranked: bool = False
     rank: int | None = None
     delivery_verified: bool = False
+    price_verified: bool = Field(
+        False, description="Complete final price with every fee reported by the marketplace."
+    )
     is_cheapest: bool = False
     not_ranked_because: list[str] = []
     attempts: int | None = None
@@ -128,6 +134,7 @@ class CheapestView(BaseModel):
     marketplace: MarketplaceCode
     marketplace_name: str
     final_price: Decimal
+    caveats: list[str] = []
 
 
 class BestCardView(BaseModel):
@@ -138,6 +145,7 @@ class BestCardView(BaseModel):
     discount: Decimal
     card: str
     delivery_verified: bool
+    price_verified: bool = True
 
 
 class SummaryView(BaseModel):
@@ -157,11 +165,21 @@ class SummaryView(BaseModel):
     marketplaces_failed: int = 0
 
 
+class LocationView(BaseModel):
+    postal_region: str
+    directory_status: Literal["VERIFIED", "NOT_FOUND", "UNAVAILABLE"]
+    district: str | None = None
+    state: str | None = None
+    division: str | None = None
+    circle: str | None = None
+
+
 class ComparisonView(BaseModel):
     id: str
     status: ComparisonStatus
     data_mode: DataMode
     pincode: str
+    location: LocationView | None = None
     source_url: str
     created_at: datetime
     completed_at: datetime | None = None

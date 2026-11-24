@@ -26,6 +26,8 @@ class PincodeResult(BaseModel):
     )
     district: str | None = None
     state: str | None = None
+    division: str | None = Field(None, description="India Post division")
+    circle: str | None = Field(None, description="India Post postal circle")
     post_offices: int = 0
     delivery_note: str
 

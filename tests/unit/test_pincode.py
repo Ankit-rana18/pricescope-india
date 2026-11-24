@@ -82,8 +82,26 @@ def test_malformed_rows_in_directory_are_ignored(directory: PincodeDirectory) ->
     assert set(directory.entries) == {"560001", "110001", "400001"}
 
 
-def test_directory_with_missing_columns_is_refused(tmp_path: Path) -> None:
+def test_directory_without_pincode_column_is_refused(tmp_path: Path) -> None:
     bad = tmp_path / "bad.csv"
-    bad.write_text("office,pin\nX,560001\n", encoding="utf-8")
-    with pytest.raises(ValueError, match="district"):
+    bad.write_text("officename,district" + chr(10) + "X,Y" + chr(10), encoding="utf-8")
+    with pytest.raises(ValueError, match="pincode"):
         PincodeDirectory.from_csv(bad)
+
+
+def test_minimal_india_post_file_still_verifies_existence() -> None:
+    """data.gov.in 'till last month' file: circle/region/division/office/pincode only."""
+    minimal = PincodeDirectory.from_csv(SAMPLE.with_name("pincode_directory_minimal.csv"))
+    info = validate_pincode("560001", minimal)
+    assert info.directory_status is DirectoryStatus.VERIFIED
+    assert (info.district, info.state) == (None, None)  # never guessed from the circle
+    assert info.circle == "Karnataka Circle"
+    assert info.division == "Bangalore GPO Division"
+    assert info.post_offices == 2
+    with pytest.raises(PincodeError):
+        validate_pincode("560099", minimal)
+
+
+def test_full_file_reports_division_and_circle_too(directory: PincodeDirectory) -> None:
+    info = validate_pincode("560001", directory)
+    assert info.circle == "Karnataka Circle"

@@ -52,6 +52,8 @@ class PriceBreakdown:
     assumptions: tuple[str, ...]
     card_offers: tuple[CardOfferValue, ...]  # best first
     best_card: CardOfferValue | None
+    # Some fee came from a published policy (ESTIMATED), so the total isn't verified.
+    final_price_estimated: bool = False
 
     @property
     def price_after_best_card(self) -> Decimal | None:
@@ -140,10 +142,16 @@ def price_offer(offer: Offer, *, location_note: str | None = None) -> PriceBreak
     order_value = max(Decimal(0), offer.item_price - verified)
     total = order_value
     complete = True
+    estimated = False
     for key, charge in charges.items():
         if charge.status is ChargeStatus.KNOWN:
             assert charge.amount is not None
             total += charge.amount
+        elif charge.status is ChargeStatus.ESTIMATED:
+            assert charge.amount is not None
+            total += charge.amount
+            estimated = True
+            assumptions.append(charge.note or f"{CHARGE_LABELS[key]} estimated")
         elif charge.status is ChargeStatus.UNKNOWN:
             complete = False
             note = f" ({charge.note})" if charge.note else ""
@@ -165,4 +173,5 @@ def price_offer(offer: Offer, *, location_note: str | None = None) -> PriceBreak
         assumptions=tuple(assumptions),
         card_offers=card_values,
         best_card=best,
+        final_price_estimated=estimated,
     )

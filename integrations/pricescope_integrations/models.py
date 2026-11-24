@@ -42,7 +42,8 @@ class LocationCapability(StrEnum):
 
 
 class ChargeStatus(StrEnum):
-    KNOWN = "KNOWN"
+    KNOWN = "KNOWN"  # reported by the marketplace for this offer
+    ESTIMATED = "ESTIMATED"  # from a published fee policy; not confirmed for this cart
     UNKNOWN = "UNKNOWN"
     NOT_APPLICABLE = "NOT_APPLICABLE"
 
@@ -123,9 +124,11 @@ class Charge(_Model):
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
-        if self.status is ChargeStatus.KNOWN:
+        if self.status in (ChargeStatus.KNOWN, ChargeStatus.ESTIMATED):
             if self.amount is None or self.amount < 0:
-                raise ValueError("a KNOWN charge needs a non-negative amount")
+                raise ValueError(f"a {self.status} charge needs a non-negative amount")
+            if self.status is ChargeStatus.ESTIMATED and not self.note:
+                raise ValueError("an ESTIMATED charge must say where the estimate comes from")
         elif self.amount is not None:
             raise ValueError(f"a {self.status} charge must not carry an amount")
         return self
@@ -133,6 +136,10 @@ class Charge(_Model):
     @classmethod
     def known(cls, amount: Decimal | int | str, note: str | None = None) -> "Charge":
         return cls(status=ChargeStatus.KNOWN, amount=Decimal(str(amount)), note=note)
+
+    @classmethod
+    def estimated(cls, amount: Decimal | int | str, note: str) -> "Charge":
+        return cls(status=ChargeStatus.ESTIMATED, amount=Decimal(str(amount)), note=note)
 
     @classmethod
     def unknown(cls, note: str | None = None) -> "Charge":

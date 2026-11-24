@@ -75,6 +75,8 @@ def _pincode_result(info: PincodeInfo) -> PincodeResult:
         directory_status=info.directory_status,
         district=info.district,
         state=info.state,
+        division=info.division,
+        circle=info.circle,
         post_offices=info.post_offices,
         delivery_note=DELIVERY_NOTE,
     )

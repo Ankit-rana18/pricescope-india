@@ -1,5 +1,15 @@
 {
   "notice": "DEMO DATA. Fictional brands, barcodes in the GS1 20-29 in-house range, fictional banks. Not real products, prices, fees, stock or offers.",
+  "published_policies": [
+    {
+      "marketplace": "FLIPKART",
+      "fee_type": "DELIVERY",
+      "amount": "40",
+      "conditions": {"below_order_value": "500"},
+      "effective_from": "2026-01-01",
+      "note": "Fictional demo policy: shows how a published fee policy fills an unknown delivery fee."
+    }
+  ],
   "metro_pin_prefixes": ["110", "122", "201", "400", "411", "500", "560", "600", "700"],
   "products": [
     {

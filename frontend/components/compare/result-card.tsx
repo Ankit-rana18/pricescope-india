@@ -24,7 +24,8 @@ const CHARGE_ROWS: [keyof NonNullable<ResultView["price"]>, string][] = [
 function chargeText(c: ChargeView): string {
   if (c.status === "UNKNOWN") return "Unknown";
   if (c.status === "NOT_APPLICABLE") return "—";
-  return Number(c.amount) === 0 ? "Free" : formatINR(c.amount);
+  const value = Number(c.amount) === 0 ? "Free" : formatINR(c.amount);
+  return c.status === "ESTIMATED" ? `≈ ${value}` : value;
 }
 
 function cardLabel(c: CardOfferView): string {
@@ -74,7 +75,11 @@ export function ResultCard({ result, demo }: { result: ResultView; demo: boolean
                 {formatINR(p.final_price)}
               </div>
               <div className="text-muted-foreground text-xs">
-                {p.final_price_complete ? "final price" : "+ unknown fees"}
+                {!p.final_price_complete
+                  ? "+ unknown fees"
+                  : p.final_price_estimated
+                    ? "estimated final price"
+                    : "final price"}
               </div>
             </div>
           )}
@@ -138,16 +143,28 @@ export function ResultCard({ result, demo }: { result: ResultView; demo: boolean
                   <div key={key} className="contents">
                     <dt className="text-muted-foreground">
                       {label}
-                      {c.note && <span className="text-xs"> · {c.note}</span>}
+                      {/* Estimate sources are listed in the notes below the breakdown. */}
+                      {c.note && c.status !== "ESTIMATED" && (
+                        <span className="text-xs"> · {c.note}</span>
+                      )}
                     </dt>
-                    <dd className={cn("text-right", c.status === "UNKNOWN" && "text-warning")}>
+                    <dd
+                      className={cn(
+                        "text-right",
+                        (c.status === "UNKNOWN" || c.status === "ESTIMATED") && "text-warning",
+                      )}
+                    >
                       {chargeText(c)}
                     </dd>
                   </div>
                 );
               })}
               <dt className="border-t pt-1.5 font-medium">
-                {p.final_price_complete ? "Final payable" : "Known subtotal"}
+                {!p.final_price_complete
+                  ? "Known subtotal"
+                  : p.final_price_estimated
+                    ? "Estimated final"
+                    : "Final payable"}
               </dt>
               <dd className="border-t pt-1.5 text-right font-semibold">
                 {formatINR(p.final_price)}

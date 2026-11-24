@@ -26,6 +26,7 @@ from app.schemas.comparison import (
     ResultView,
     SummaryView,
 )
+from app.services.fee_policies import FeePolicySource, apply_policies
 from app.services.matching import (
     SOURCE_REASON,
     MatchDecision,
@@ -117,6 +118,7 @@ def price_view(b: PriceBreakdown, coupons: list[CouponView]) -> PriceView:
         coupons=coupons,
         final_price=b.final_price,
         final_price_complete=b.final_price_complete,
+        final_price_estimated=b.final_price_estimated,
         assumptions=list(b.assumptions),
     )
 
@@ -126,14 +128,20 @@ def _scored(
     cand: CandidateOffer,
     reviewer: MatchReviewer | None = None,
     budget: ReviewBudget | None = None,
+    pincode: str | None = None,
+    policies: FeePolicySource | None = None,
 ) -> tuple[MatchDecision, PriceBreakdown | None]:
     decision = review_decision(
         source, cand.listing, classify(source, cand.listing), reviewer, budget
     )
     if cand.offer is None:
         return decision, None
-    note = LOCATION_NOTES.get(cand.offer.location.verification)
-    return decision, price_offer(cand.offer, location_note=note)
+    offer = cand.offer
+    if policies is not None and pincode is not None:
+        code = MarketplaceCode(cand.listing.marketplace.value)
+        offer = apply_policies(offer, policies.for_marketplace(code), pincode)
+    note = LOCATION_NOTES.get(offer.location.verification)
+    return decision, price_offer(offer, location_note=note)
 
 
 def evaluate(
@@ -141,6 +149,9 @@ def evaluate(
     fetch: FetchResult,
     reviewer: MatchReviewer | None = None,
     budget: ReviewBudget | None = None,
+    *,
+    pincode: str | None = None,
+    policies: FeePolicySource | None = None,
 ) -> ResultView:
     code = MarketplaceCode(fetch.marketplace.value)
     base = ResultView(
@@ -157,7 +168,9 @@ def evaluate(
             base.status_reason = fetch.error_code
         return base
 
-    scored = [(c, *_scored(source, c, reviewer, budget)) for c in fetch.candidates]
+    scored = [
+        (c, *_scored(source, c, reviewer, budget, pincode, policies)) for c in fetch.candidates
+    ]
 
     def key(
         item: tuple[CandidateOffer, MatchDecision, PriceBreakdown | None],
@@ -234,20 +247,23 @@ def _ranking_blockers(r: ResultView) -> list[str]:
 def rank_and_summarize(results: list[ResultView]) -> tuple[list[ResultView], SummaryView]:
     """Rank exact, in-stock, fully priced results by final price.
 
-    Results whose delivery to the PIN is verified come first; those that can't be verified
-    (but aren't known to be undeliverable) follow, flagged. Everything else is listed after,
-    with the reasons it wasn't ranked.
+    Fully verified results come first (delivery to the PIN verified AND every fee reported
+    by the marketplace). Results with unverifiable delivery or a fee estimated from a
+    published policy follow, flagged. Everything else is listed after, with reasons.
     """
     for r in results:
         r.not_ranked_because = _ranking_blockers(r)
         r.ranked = not r.not_ranked_because
         r.delivery_verified = r.location_verification == "VERIFIED"
+        r.price_verified = bool(
+            r.price and r.price.final_price_complete and not r.price.final_price_estimated
+        )
         r.rank = None
         r.is_cheapest = False
 
     ranked = sorted(
         (r for r in results if r.ranked),
-        key=lambda r: (0 if r.delivery_verified else 1, r.price.final_price),  # type: ignore[union-attr]
+        key=lambda r: (0 if _fully_verified(r) else 1, _final_price(r)),
     )
     for i, r in enumerate(ranked, start=1):
         r.rank = i
@@ -271,7 +287,7 @@ def rank_and_summarize(results: list[ResultView]) -> tuple[list[ResultView], Sum
         marketplaces_checked=sum(1 for r in results if r.status in ("OK", "NOT_FOUND")),
         marketplaces_failed=sum(1 for r in results if r.status == "FAILED"),
     )
-    verified = [r for r in ranked if r.delivery_verified]
+    verified = [r for r in ranked if _fully_verified(r)]
     if verified:
         best = verified[0]
         best.is_cheapest = True
@@ -281,7 +297,10 @@ def rank_and_summarize(results: list[ResultView]) -> tuple[list[ResultView], Sum
             marketplace_name=best.marketplace_name,
             final_price=best.price.final_price,
         )
-    unverified = [r for r in ranked if not r.delivery_verified]
+    unverified = sorted(
+        (r for r in ranked if not _fully_verified(r)),
+        key=_final_price,
+    )
     if unverified:
         u = unverified[0]
         assert u.price and u.price.final_price is not None
@@ -290,9 +309,10 @@ def rank_and_summarize(results: list[ResultView]) -> tuple[list[ResultView], Sum
                 marketplace=u.marketplace,
                 marketplace_name=u.marketplace_name,
                 final_price=u.price.final_price,
+                caveats=_caveats(u),
             )
     source = next((r for r in results if r.is_source), None)
-    if source and source.price and source.price.final_price_complete:
+    if source and source.price_verified and source.price:
         summary.source_final_price = source.price.final_price
         if summary.cheapest and source.price.final_price is not None:
             summary.savings_vs_source = max(
@@ -312,5 +332,24 @@ def rank_and_summarize(results: list[ResultView]) -> tuple[list[ResultView], Sum
             discount=b.best_card.discount,
             card=b.best_card.note,
             delivery_verified=b.delivery_verified,
+            price_verified=b.price_verified,
         )
     return ranked + rest, summary
+
+
+def _final_price(r: ResultView) -> Decimal:
+    """Sort key for ranked results (always priced)."""
+    return r.price.final_price if r.price and r.price.final_price is not None else Decimal("9e15")
+
+
+def _fully_verified(r: ResultView) -> bool:
+    return r.delivery_verified and r.price_verified
+
+
+def _caveats(r: ResultView) -> list[str]:
+    out = []
+    if not r.delivery_verified:
+        out.append("delivery to your PIN code can't be verified")
+    if not r.price_verified:
+        out.append("it includes fees estimated from a published policy")
+    return out

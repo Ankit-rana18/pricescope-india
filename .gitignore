@@ -31,3 +31,6 @@ next-env.d.ts
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local data files (e.g. India Post PIN directory)
+data/

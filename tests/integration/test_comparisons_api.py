@@ -2,6 +2,7 @@
 
 from collections.abc import Iterator
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -169,7 +170,8 @@ def test_storage_use_per_comparison_is_small(
     run(client, service, SALT)  # warm marketplace ids
     sheets.calls.clear()
     run(client, service, BUTTER)
-    assert sheets.calls["append_rows"] <= 4
+    # listings, results, price history, location checks (+ comparison row at start)
+    assert sheets.calls["append_rows"] <= 5
     assert sheets.calls["update_row"] == 1
 
 
@@ -311,3 +313,67 @@ def test_thread_executor_turns_a_hung_marketplace_into_failure() -> None:
     release.set()
     assert results[Marketplace.ZEPTO].error_code == "deadline_exceeded"
     assert results[Marketplace.AMAZON_IN].status.value == "OK"
+
+
+# ------------------------------------------------------------------ Phase 6: policies + location
+
+
+def make_phase6_service(sheets: FakeSheetClient) -> ComparisonService:
+    from pricescope_integrations.demo.adapter import demo_fee_policies
+
+    from app.services.fee_policies import demo_policies
+    from app.services.pincode import PincodeDirectory
+
+    adapters = build_adapters(FAST)
+    sample = Path(__file__).resolve().parents[1] / "fixtures" / "pincode_directory_sample.csv"
+    return ComparisonService(
+        SheetsTableStore(sheets),
+        adapters,
+        ThreadFetchExecutor(adapters, policy=POLICY),
+        data_mode=DataMode.DEMO,
+        directory=PincodeDirectory.from_csv(sample),
+        policies=demo_policies(demo_fee_policies()),
+    )
+
+
+def test_demo_policy_estimates_unknown_delivery_and_is_ranked_after_verified(
+    sheets: FakeSheetClient,
+) -> None:
+    service = make_phase6_service(sheets)
+    with client_for(service) as c:
+        view = run(c, service, SALT)
+    fk = by_marketplace(view)["FLIPKART"]
+    assert fk["price"]["delivery_fee"]["status"] == "ESTIMATED"
+    assert Decimal(fk["price"]["delivery_fee"]["amount"]) == Decimal("40.00")
+    assert fk["price"]["final_price_estimated"] is True
+    assert fk["price_verified"] is False
+    assert fk["ranked"] is True  # complete (estimated) prices are ranked ...
+    assert view["summary"]["cheapest"]["marketplace"] == "AMAZON_IN"  # ... but never "verified"
+    ranks = {r["marketplace"]: r["rank"] for r in view["results"] if r["ranked"]}
+    assert ranks["FLIPKART"] > ranks["AMAZON_IN"]
+
+
+def test_comparison_shows_pin_area_and_saves_location_checks(sheets: FakeSheetClient) -> None:
+    service = make_phase6_service(sheets)
+    with client_for(service) as c:
+        view = run(c, service, SALT, pin="110001")
+    assert view["location"] == {
+        "postal_region": "Northern",
+        "directory_status": "VERIFIED",
+        "district": "New Delhi",
+        "state": "Delhi",
+        "division": "New Delhi GPO Division",
+        "circle": "Delhi Circle",
+    }
+    saved = sheets.column_values("location_checks", "verification")
+    assert "VERIFIED" in saved and "UNVERIFIABLE" in saved
+
+
+def test_estimated_flag_survives_reload(sheets: FakeSheetClient) -> None:
+    service = make_phase6_service(sheets)
+    with client_for(service) as c:
+        live = run(c, service, SALT)
+    fresh = make_phase6_service(sheets)
+    with client_for(fresh) as c2:
+        stored = c2.get(f"/api/v1/comparisons/{live['id']}").json()
+    assert stored == live

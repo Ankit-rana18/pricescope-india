@@ -5,7 +5,7 @@ from typing import Annotated
 
 import structlog
 from fastapi import APIRouter, Depends, Response
-from pricescope_integrations.demo.adapter import demo_source_links
+from pricescope_integrations.demo.adapter import demo_fee_policies, demo_source_links
 from pricescope_integrations.registry import build_adapters
 
 from app.api.v1.lookup import Directory, InvalidInput, LinkResolver
@@ -27,8 +27,9 @@ from app.services.comparison.executors import (
     ThreadFetchExecutor,
 )
 from app.services.comparison.service import ComparisonService
+from app.services.fee_policies import FeePolicySource, StoreFeePolicies, demo_policies
 from app.services.matching import CachedReviewer, ClaudeMatchReviewer, MatchReviewer
-from app.services.pincode import PincodeError, validate_pincode
+from app.services.pincode import PincodeError, load_directory, validate_pincode
 from app.services.url_parser import UrlParseError, resolve_product_url
 from app.storage.factory import get_store
 
@@ -62,13 +63,20 @@ def get_comparison_service() -> ComparisonService:
         if settings.task_executor is TaskExecutor.CELERY
         else ThreadFetchExecutor(adapters)
     )
+    # Demo and live never mix: fictional demo policies, or admin-entered live ones.
+    store = get_store()
+    policies: FeePolicySource = (
+        demo_policies(demo_fee_policies()) if settings.demo_mode else StoreFeePolicies(store)
+    )
     return ComparisonService(
-        get_store(),
+        store,
         adapters,
         executor,
         data_mode=DataMode.DEMO if settings.demo_mode else DataMode.LIVE,
         reviewer=build_reviewer(settings),
         reviews_per_comparison=settings.llm_review_max_per_comparison,
+        directory=load_directory(settings.pincode_directory_file),
+        policies=policies,
     )
 
 

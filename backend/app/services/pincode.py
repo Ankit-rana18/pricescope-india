@@ -37,11 +37,17 @@ DELIVERY_NOTE = (
 )
 
 # Accepted header spellings across published versions of the India Post dataset.
-_HEADER_ALIASES = {
+# Only pincode + office name are required; the "till last month" resource on data.gov.in
+# lists circle/region/division/office/pincode, while older versions add district + state.
+_REQUIRED = {
     "pincode": ("pincode", "pin code", "pin"),
     "office": ("officename", "office name", "office"),
+}
+_OPTIONAL = {
     "district": ("district", "districtname", "district name"),
     "state": ("statename", "state name", "state"),
+    "division": ("divisionname", "division name", "division"),
+    "circle": ("circlename", "circle name", "circle"),
 }
 
 
@@ -59,20 +65,36 @@ class PincodeError(ValueError):
 
 
 @dataclass(frozen=True)
+class PostOffice:
+    name: str
+    district: str | None = None
+    state: str | None = None
+    division: str | None = None
+    circle: str | None = None
+
+
+@dataclass(frozen=True)
 class PincodeInfo:
     pincode: str
     postal_region: str
     directory_status: DirectoryStatus
     district: str | None = None
     state: str | None = None
+    division: str | None = None
+    circle: str | None = None
     post_offices: int = 0
+
+
+def _most_common(values: list[str | None]) -> str | None:
+    present = [v for v in values if v]
+    return max(set(present), key=present.count) if present else None
 
 
 @dataclass
 class PincodeDirectory:
-    """In-memory index: about 155k post offices fit easily in memory."""
+    """In-memory index: about 165k post offices fit easily in memory."""
 
-    entries: dict[str, list[tuple[str, str, str]]] = field(default_factory=dict)
+    entries: dict[str, list[PostOffice]] = field(default_factory=dict)
 
     @property
     def available(self) -> bool:
@@ -83,27 +105,43 @@ class PincodeDirectory:
         with path.open(encoding="utf-8-sig", newline="") as fh:
             reader = csv.DictReader(fh)
             normalized = {(h or "").strip().lower(): h for h in reader.fieldnames or []}
-            columns: dict[str, str] = {}
-            for key, aliases in _HEADER_ALIASES.items():
-                found = next((normalized[a] for a in aliases if a in normalized), None)
+
+            def find(aliases: tuple[str, ...]) -> str | None:
+                return next((normalized[a] for a in aliases if a in normalized), None)
+
+            columns: dict[str, str | None] = {}
+            for key, aliases in _REQUIRED.items():
+                found = find(aliases)
                 if found is None:
                     raise ValueError(f"PIN directory CSV has no {key!r} column")
                 columns[key] = found
-            entries: dict[str, list[tuple[str, str, str]]] = {}
+            for key, aliases in _OPTIONAL.items():
+                columns[key] = find(aliases)
+
+            def cell(row: dict[str, str], key: str, title: bool = True) -> str | None:
+                col = columns.get(key)
+                value = (row.get(col) or "").strip() if col else ""
+                if not value or value.upper() in ("NA", "N/A", "NULL"):
+                    return None
+                return value.title() if title else value
+
+            entries: dict[str, list[PostOffice]] = {}
             for row in reader:
-                pin = (row.get(columns["pincode"]) or "").strip()
+                pin = (row.get(columns["pincode"] or "") or "").strip()
                 if not PINCODE_RE.fullmatch(pin):
                     continue
                 entries.setdefault(pin, []).append(
-                    (
-                        (row.get(columns["office"]) or "").strip(),
-                        (row.get(columns["district"]) or "").strip().title(),
-                        (row.get(columns["state"]) or "").strip().title(),
+                    PostOffice(
+                        name=cell(row, "office", title=False) or "",
+                        district=cell(row, "district"),
+                        state=cell(row, "state"),
+                        division=cell(row, "division", title=False),
+                        circle=cell(row, "circle", title=False),
                     )
                 )
         return cls(entries)
 
-    def lookup(self, pincode: str) -> list[tuple[str, str, str]]:
+    def lookup(self, pincode: str) -> list[PostOffice]:
         return self.entries.get(pincode, [])
 
 
@@ -137,7 +175,14 @@ def validate_pincode(raw: str, directory: PincodeDirectory) -> PincodeInfo:
         raise PincodeError(
             "pincode_not_found", "We couldn't find this PIN code in the India Post directory."
         )
-    # Most PINs sit in one district; report the most common one.
-    districts = [(d, s) for _, d, s in offices]
-    district, state = max(set(districts), key=districts.count)
-    return PincodeInfo(pin, region, DirectoryStatus.VERIFIED, district, state, len(offices))
+    # Most PINs sit in one district; report the most common values.
+    return PincodeInfo(
+        pin,
+        region,
+        DirectoryStatus.VERIFIED,
+        district=_most_common([o.district for o in offices]),
+        state=_most_common([o.state for o in offices]),
+        division=_most_common([o.division for o in offices]),
+        circle=_most_common([o.circle for o in offices]),
+        post_offices=len(offices),
+    )

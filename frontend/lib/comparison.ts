@@ -6,7 +6,7 @@ export type MatchClass = "EXACT" | "PROBABLE" | "MISMATCH" | "UNVERIFIED";
 export type ComparisonStatus = "PENDING" | "RUNNING" | "COMPLETE" | "PARTIAL" | "FAILED";
 export type ResultState =
   "PENDING" | "OK" | "NOT_FOUND" | "FAILED" | "UNSUPPORTED" | "NOT_CONFIGURED";
-export type ChargeStatus = "KNOWN" | "UNKNOWN" | "NOT_APPLICABLE";
+export type ChargeStatus = "KNOWN" | "ESTIMATED" | "UNKNOWN" | "NOT_APPLICABLE";
 export type LocationVerification =
   "VERIFIED" | "UNVERIFIABLE" | "UNAVAILABLE" | "NEEDS_PRECISE_LOCATION";
 
@@ -49,6 +49,7 @@ export interface PriceView {
   coupons: { description: string; amount: Money; eligibility: "VERIFIED" | "UNVERIFIED" }[];
   final_price: Money | null;
   final_price_complete: boolean;
+  final_price_estimated: boolean;
   assumptions: string[];
 }
 
@@ -96,6 +97,7 @@ export interface ResultView {
   ranked: boolean;
   rank: number | null;
   delivery_verified: boolean;
+  price_verified: boolean;
   is_cheapest: boolean;
   not_ranked_because: string[];
   attempts: number | null;
@@ -107,6 +109,16 @@ interface PlaceView {
   marketplace: MarketplaceCode;
   marketplace_name: string;
   final_price: Money;
+  caveats: string[];
+}
+
+export interface LocationView {
+  postal_region: string;
+  directory_status: "VERIFIED" | "NOT_FOUND" | "UNAVAILABLE";
+  district: string | null;
+  state: string | null;
+  division: string | null;
+  circle: string | null;
 }
 
 export interface ComparisonView {
@@ -114,6 +126,7 @@ export interface ComparisonView {
   status: ComparisonStatus;
   data_mode: DataMode;
   pincode: string;
+  location: LocationView | null;
   source_url: string;
   created_at: string;
   completed_at: string | null;
@@ -132,6 +145,7 @@ export interface ComparisonView {
       discount: Money;
       card: string;
       delivery_verified: boolean;
+      price_verified: boolean;
     } | null;
     exact_matches: number;
     probable_matches: number;

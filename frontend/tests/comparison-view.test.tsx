@@ -55,6 +55,7 @@ const base: Omit<ResultView, "marketplace" | "marketplace_name"> = {
   ranked: true,
   rank: 1,
   delivery_verified: true,
+  price_verified: true,
   is_cheapest: false,
   not_ranked_because: [],
   attempts: 1,
@@ -87,16 +88,19 @@ const COMPARISON: Comparison = {
   source: listing("AMAZON_IN", "Amazon India"),
   reused: false,
   storage_note: null,
+  location: null,
   summary: {
     cheapest: {
       marketplace: "AMAZON_IN",
       marketplace_name: "Amazon India",
       final_price: "14999.00",
+      caveats: [],
     },
     cheaper_unverified: {
       marketplace: "FLIPKART",
       marketplace_name: "Flipkart",
       final_price: "14008.00",
+      caveats: ["delivery to your PIN code can't be verified"],
     },
     source_final_price: "14999.00",
     savings_vs_source: "0.00",
@@ -108,6 +112,7 @@ const COMPARISON: Comparison = {
       discount: "1499.90",
       card: "Demo Bank A credit card",
       delivery_verified: true,
+      price_verified: true,
     },
     exact_matches: 2,
     probable_matches: 0,
@@ -133,6 +138,7 @@ const COMPARISON: Comparison = {
         coupons: [],
         final_price: "14999.00",
         final_price_complete: true,
+        final_price_estimated: false,
         assumptions: ["Card offers depend on your card and are not included in the price"],
       },
       card_offers: [bestCard],
@@ -158,6 +164,7 @@ const COMPARISON: Comparison = {
         coupons: [],
         final_price: "14100.00",
         final_price_complete: false,
+        final_price_estimated: false,
         assumptions: [],
       },
     },
@@ -195,7 +202,7 @@ describe("ComparisonView", () => {
 
     expect((await screen.findAllByText("Cheapest verified")).length).toBe(2); // summary + badge
     expect(
-      screen.getByText(/Flipkart shows ₹14,008, but delivery to 560001 can't be verified/),
+      screen.getByText(/Flipkart shows ₹14,008, but delivery to your PIN code can't be verified/),
     ).toBeInTheDocument();
     expect(screen.getAllByText("₹13,499.10").length).toBe(2); // summary + card
     expect(screen.getByText(/Only if you pay with that card/)).toBeInTheDocument();
@@ -253,5 +260,62 @@ describe("ComparisonView", () => {
     );
     render(<ComparisonView id="nope" />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Comparison not found.");
+  });
+
+  it("shows estimated fees as estimates and the PIN area", async () => {
+    const amazon = COMPARISON.results[0]!;
+    const estimated: Comparison = {
+      ...COMPARISON,
+      location: {
+        postal_region: "Southern",
+        directory_status: "VERIFIED",
+        district: "Bengaluru Urban",
+        state: "Karnataka",
+        division: null,
+        circle: "Karnataka Circle",
+      },
+      results: [
+        {
+          ...amazon,
+          price_verified: false,
+          price: {
+            ...amazon.price!,
+            delivery_fee: {
+              status: "ESTIMATED",
+              amount: "40.00",
+              note: "Estimated delivery ₹40 per published policy; not confirmed for your cart",
+            },
+            final_price_estimated: true,
+            assumptions: [
+              "Estimated delivery ₹40 per published policy; not confirmed for your cart",
+            ],
+          },
+        },
+      ],
+    };
+    mockComparison(estimated);
+    render(<ComparisonView id="c1" />);
+    expect(await screen.findByText("estimated final price")).toBeInTheDocument();
+    expect(screen.getByText("≈ ₹40")).toBeInTheDocument();
+    expect(
+      screen.getByText(/per published policy; not confirmed for your cart/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("· Bengaluru Urban, Karnataka")).toBeInTheDocument();
+  });
+
+  it("falls back to the postal circle when the directory has no district", async () => {
+    mockComparison({
+      ...COMPARISON,
+      location: {
+        postal_region: "Southern",
+        directory_status: "VERIFIED",
+        district: null,
+        state: null,
+        division: "Bangalore GPO Division",
+        circle: "Karnataka Circle",
+      },
+    });
+    render(<ComparisonView id="c1" />);
+    expect(await screen.findByText("· Karnataka Circle")).toBeInTheDocument();
   });
 });

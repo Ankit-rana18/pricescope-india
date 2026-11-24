@@ -73,6 +73,7 @@ class ChargeStatus(StrEnum):
     """Status of one price component. UNKNOWN is never treated as zero."""
 
     KNOWN = "KNOWN"
+    ESTIMATED = "ESTIMATED"  # from a published fee policy, not confirmed for the cart
     UNKNOWN = "UNKNOWN"
     NOT_APPLICABLE = "NOT_APPLICABLE"
 
