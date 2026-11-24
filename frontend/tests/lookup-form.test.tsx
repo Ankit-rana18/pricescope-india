@@ -12,6 +12,7 @@ const SUCCESS: LookupResult = {
     external_id: "B07JGFGW3V",
     id_type: "ASIN",
     canonical_url: "https://www.amazon.in/dp/B07JGFGW3V",
+    resolved_from: null,
   },
   location: {
     pincode: "560001",
@@ -116,5 +117,19 @@ describe("LookupForm", () => {
     window.localStorage.setItem("pricescope:last-pincode", "110001");
     render(<LookupForm />);
     await waitFor(() => expect(screen.getByLabelText("PIN code")).toHaveValue("110001"));
+  });
+
+  it("shows the short link a product was found through", async () => {
+    mockFetch(200, {
+      ...SUCCESS,
+      product: { ...SUCCESS.product, resolved_from: "https://amzn.in/d/7xYz" },
+    });
+    render(<LookupForm />);
+    await fillAndSubmit("amzn.in/d/7xYz", "560001");
+
+    expect(await screen.findByText("Short link")).toBeInTheDocument();
+    expect(screen.getByText("https://amzn.in/d/7xYz")).toBeInTheDocument();
+    expect(screen.getByText(/only followed your short link/)).toBeInTheDocument();
+    expect(screen.queryByText(/No marketplace was contacted/)).not.toBeInTheDocument();
   });
 });

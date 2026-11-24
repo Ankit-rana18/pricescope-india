@@ -27,6 +27,7 @@ def test_lookup_success_without_directory_is_honest() -> None:
         "external_id": "B07JGFGW3V",
         "id_type": "ASIN",
         "canonical_url": "https://www.amazon.in/dp/B07JGFGW3V",
+        "resolved_from": None,
     }
     assert body["location"]["pincode"] == "560001"
     assert body["location"]["directory_status"] == "UNAVAILABLE"

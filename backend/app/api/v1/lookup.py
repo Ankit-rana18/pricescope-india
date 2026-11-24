@@ -1,5 +1,6 @@
 """Product-link and PIN-code checks. No marketplace is contacted."""
 
+from functools import lru_cache
 from http import HTTPStatus
 from typing import Annotated, Any
 
@@ -23,7 +24,14 @@ from app.services.pincode import (
     load_directory,
     validate_pincode,
 )
-from app.services.url_parser import NAMES, ParsedProductUrl, UrlParseError, parse_product_url
+from app.services.safe_http import SafeRedirectResolver
+from app.services.url_parser import (
+    NAMES,
+    ParsedProductUrl,
+    UrlParseError,
+    all_link_hosts,
+    resolve_product_url,
+)
 
 router = APIRouter(tags=["lookup"])
 
@@ -52,6 +60,14 @@ def get_pincode_directory(
 Directory = Annotated[PincodeDirectory, Depends(get_pincode_directory)]
 
 
+@lru_cache
+def get_link_resolver() -> SafeRedirectResolver:
+    return SafeRedirectResolver(all_link_hosts())
+
+
+LinkResolver = Annotated[SafeRedirectResolver, Depends(get_link_resolver)]
+
+
 def _pincode_result(info: PincodeInfo) -> PincodeResult:
     return PincodeResult(
         pincode=info.pincode,
@@ -71,6 +87,7 @@ def _product_result(parsed: ParsedProductUrl) -> ProductLinkResult:
         external_id=parsed.external_id,
         id_type=parsed.id_type,
         canonical_url=parsed.canonical_url,
+        resolved_from=parsed.resolved_from,
     )
 
 
@@ -93,15 +110,18 @@ def validate_location(body: PincodeRequest, directory: Directory) -> PincodeResu
     "/lookups/validate",
     response_model=LookupResult,
     summary="Check a product link and PIN code before comparing",
-    description="Recognises the marketplace and product ID from the link (no network "
-    "request) and validates the PIN code. Reports every invalid field at once.",
+    description="Recognises the marketplace and product ID from the link and validates the "
+    "PIN code. Short links (amzn.in, amzn.to, dl.flipkart.com/s) are followed through an "
+    "SSRF-safe resolver; no product page is fetched. Reports every invalid field at once.",
     responses=_ERRORS,
 )
-def validate_lookup(body: LookupRequest, directory: Directory) -> LookupResult:
+def validate_lookup(
+    body: LookupRequest, directory: Directory, link_resolver: LinkResolver
+) -> LookupResult:
     errors: list[FieldError] = []
     product = location = None
     try:
-        product = _product_result(parse_product_url(body.url))
+        product = _product_result(resolve_product_url(body.url, link_resolver))
     except UrlParseError as exc:
         errors.append(FieldError(field="url", code=exc.code, message=exc.message))
     try:

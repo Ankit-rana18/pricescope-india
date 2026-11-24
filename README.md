@@ -20,7 +20,8 @@ pack count and variant) with transparent final prices.
 | 1 | Repo setup, database schema + migrations, backend skeleton, design system | ✅ done |
 | 1b | Google Sheets storage backend (interim), shared validation, contract tests | ✅ done |
 | 2 | Homepage form: product-link recognition + PIN-code validation (no price lookups yet) | ✅ done |
-| 3–9 | See the implementation plan | pending |
+| 3 | SSRF-safe short-link resolution; quantity / pack / variant normalization | ✅ done |
+| 4–9 | See the implementation plan | pending |
 
 ## Repository layout
 

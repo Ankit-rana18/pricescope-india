@@ -38,6 +38,12 @@ export function LookupResult({ result }: { result: LookupResultData }) {
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
               <dt className="text-muted-foreground">{ID_LABELS[product.id_type] ?? "ID"}</dt>
               <dd className="tabular font-mono break-all">{product.external_id}</dd>
+              {product.resolved_from && (
+                <>
+                  <dt className="text-muted-foreground">Short link</dt>
+                  <dd className="text-muted-foreground break-all">{product.resolved_from}</dd>
+                </>
+              )}
             </dl>
             <a
               href={product.canonical_url}
@@ -93,8 +99,9 @@ export function LookupResult({ result }: { result: LookupResultData }) {
         <p>
           <span className="font-medium">Price comparison isn&apos;t available yet.</span>{" "}
           <span className="text-muted-foreground">
-            This check only read your link and PIN code. No marketplace was contacted and no prices
-            were looked up.
+            {product.resolved_from
+              ? "We only followed your short link's redirect to find the product page. No product page was opened and no prices were looked up."
+              : "This check only read your link and PIN code. No marketplace was contacted and no prices were looked up."}
           </span>
         </p>
       </div>

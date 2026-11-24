@@ -1,19 +1,24 @@
 """Recognise a supported marketplace product URL and extract its product identifier.
 
-Pure parsing: this module never makes a network request. Only exact, allow-listed hosts
-are accepted, and the canonical URL is rebuilt from the extracted parts, so tracking
-parameters and anything else in the pasted URL are dropped.
+``parse_product_url`` is pure parsing and never makes a network request. Only exact,
+allow-listed hosts are accepted, and the canonical URL is rebuilt from the extracted parts,
+so tracking parameters and anything else in the pasted URL are dropped.
+
+``resolve_product_url`` additionally follows marketplace *short links* (``amzn.in/d/…``)
+through the SSRF-safe resolver in ``app.services.safe_http``. That is the only network
+request made for a pasted link, and it never fetches the product page itself.
 
 The path patterns reflect the public URL formats these sites use today. They will be
 re-checked against real responses once each marketplace's authorized adapter is live.
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from urllib.parse import parse_qs, urlsplit
 
 from app.models.enums import MarketplaceCode
+from app.services.safe_http import ResolveError, SafeRedirectResolver, UnsafeUrlError
 
 MAX_URL_LENGTH = 2048
 
@@ -26,15 +31,18 @@ class UrlErrorCode(StrEnum):
     CREDENTIALS = "url_has_credentials"
     PORT = "url_port_not_allowed"
     UNSUPPORTED_SITE = "unsupported_marketplace"
-    SHORT_LINK = "short_link_not_supported"
+    SHORT_LINK = "short_link"
     NOT_A_PRODUCT = "not_a_product_page"
+    SHORT_LINK_FAILED = "short_link_failed"
+    UNSAFE_REDIRECT = "short_link_unsafe"
 
 
 class UrlParseError(ValueError):
-    def __init__(self, code: UrlErrorCode, message: str) -> None:
+    def __init__(self, code: UrlErrorCode, message: str, *, url: str | None = None) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
+        self.url = url  # normalised short link, for SHORT_LINK errors
 
 
 @dataclass(frozen=True)
@@ -43,6 +51,7 @@ class ParsedProductUrl:
     external_id: str
     id_type: str  # ASIN, FSN, ...
     canonical_url: str
+    resolved_from: str | None = None  # the short link the user pasted, if any
 
 
 HOSTS: dict[str, MarketplaceCode] = {
@@ -60,8 +69,7 @@ HOSTS: dict[str, MarketplaceCode] = {
     "www.bigbasket.com": MarketplaceCode.BIGBASKET,
 }
 
-# Redirect-only short links. Resolving them needs an outbound request, which arrives
-# with the SSRF-safe HTTP client in Phase 3; until then the full link is required.
+# Redirect-only short links, resolved via app.services.safe_http (never fetched directly).
 SHORT_LINK_HOSTS = {"amzn.in", "amzn.to", "a.co"}
 
 NAMES = {
@@ -124,10 +132,14 @@ def parse_product_url(raw: str) -> ParsedProductUrl:
     host = (parts.hostname or "").rstrip(".").lower()
     if not host or not host.isascii():
         raise UrlParseError(UrlErrorCode.INVALID, "That doesn't look like a valid link.")
-    if host in SHORT_LINK_HOSTS:
+    path = parts.path or "/"
+    if host == "dl.flipkart.com" and path.startswith("/dl/"):
+        path = path[3:]  # Flipkart share links: dl.flipkart.com/dl/<slug>/p/<itm>?pid=...
+    if host in SHORT_LINK_HOSTS or (host == "dl.flipkart.com" and path.startswith("/s/")):
         raise UrlParseError(
             UrlErrorCode.SHORT_LINK,
-            "Short links aren't supported yet. Open the link and paste the full product URL.",
+            "This is a short link; it has to be opened to find the product.",
+            url=f"https://{host}{parts.path or '/'}" + (f"?{parts.query}" if parts.query else ""),
         )
     marketplace = HOSTS.get(host)
     if marketplace is None:
@@ -136,7 +148,6 @@ def parse_product_url(raw: str) -> ParsedProductUrl:
             "Paste a link from Amazon India, Flipkart, Blinkit, Zepto or BigBasket.",
         )
 
-    path = parts.path or "/"
     name = NAMES[marketplace]
 
     if marketplace is MarketplaceCode.AMAZON_IN:
@@ -183,3 +194,48 @@ def parse_product_url(raw: str) -> ParsedProductUrl:
     return ParsedProductUrl(
         marketplace, pvid, "ZEPTO_PVID", f"https://www.zeptonow.com/pn/{slug}/pvid/{pvid}"
     )
+
+
+def _is_product_url(url: str) -> bool:
+    try:
+        parse_product_url(url)
+    except UrlParseError:
+        return False
+    return True
+
+
+def resolve_product_url(raw: str, resolver: SafeRedirectResolver) -> ParsedProductUrl:
+    """Like ``parse_product_url``, but follows marketplace short links safely."""
+    try:
+        return parse_product_url(raw)
+    except UrlParseError as exc:
+        if exc.code is not UrlErrorCode.SHORT_LINK or exc.url is None:
+            raise
+        short_url = exc.url
+    try:
+        final_url, _hops = resolver.resolve(short_url, is_final=_is_product_url)
+    except UnsafeUrlError:
+        raise UrlParseError(
+            UrlErrorCode.UNSAFE_REDIRECT,
+            "This short link leads somewhere we can't open safely. Paste the full product link.",
+        ) from None
+    except ResolveError:
+        raise UrlParseError(
+            UrlErrorCode.SHORT_LINK_FAILED,
+            "We couldn't open this short link. Open it in your browser and paste the full "
+            "product link instead.",
+        ) from None
+    try:
+        parsed = parse_product_url(final_url)
+    except UrlParseError as exc:
+        if exc.code is UrlErrorCode.SHORT_LINK:
+            raise UrlParseError(
+                UrlErrorCode.SHORT_LINK_FAILED, "This short link doesn't lead to a product page."
+            ) from None
+        raise
+    return replace(parsed, resolved_from=short_url)
+
+
+def all_link_hosts() -> set[str]:
+    """Every host a short-link redirect chain may pass through."""
+    return set(HOSTS) | SHORT_LINK_HOSTS

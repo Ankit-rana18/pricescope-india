@@ -156,7 +156,8 @@ export function LookupForm() {
           </div>
         </div>
         <p className="text-muted-foreground mt-3 text-xs">
-          Supported: Amazon India, Flipkart, Blinkit, Zepto and BigBasket product pages.
+          Supported: Amazon India, Flipkart, Blinkit, Zepto and BigBasket product pages. Short share
+          links (amzn.in, dl.flipkart.com) work too.
         </p>
       </form>
 

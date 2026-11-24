@@ -60,6 +60,7 @@ export interface LookupResult {
     external_id: string;
     id_type: string;
     canonical_url: string;
+    resolved_from: string | null;
   };
   location: {
     pincode: string;

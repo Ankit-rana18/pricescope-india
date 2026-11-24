@@ -36,6 +36,9 @@ class ProductLinkResult(BaseModel):
     external_id: str
     id_type: str
     canonical_url: str
+    resolved_from: str | None = Field(
+        default=None, description="The short link that was followed to find this product."
+    )
 
 
 class LookupResult(BaseModel):
@@ -43,7 +46,8 @@ class LookupResult(BaseModel):
     location: PincodeResult
     comparison_available: Literal[False] = Field(
         default=False,
-        description="Price comparison is not built yet; this check makes no marketplace calls.",
+        description="Price comparison is not built yet. The only outbound request is "
+        "following a short link's redirects; product pages are never fetched.",
     )
 
 
