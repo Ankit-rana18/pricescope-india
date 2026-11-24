@@ -26,7 +26,14 @@ from app.schemas.comparison import (
     ResultView,
     SummaryView,
 )
-from app.services.matching import MatchDecision, classify
+from app.services.matching import (
+    SOURCE_REASON,
+    MatchDecision,
+    MatchReviewer,
+    ReviewBudget,
+    classify,
+    review_decision,
+)
 from app.services.normalization import normalize_attributes
 from app.services.pricing import CardOfferValue, PriceBreakdown, money, price_offer
 from app.services.url_parser import NAMES
@@ -114,15 +121,27 @@ def price_view(b: PriceBreakdown, coupons: list[CouponView]) -> PriceView:
     )
 
 
-def _scored(source: Listing, cand: CandidateOffer) -> tuple[MatchDecision, PriceBreakdown | None]:
-    decision = classify(source, cand.listing)
+def _scored(
+    source: Listing,
+    cand: CandidateOffer,
+    reviewer: MatchReviewer | None = None,
+    budget: ReviewBudget | None = None,
+) -> tuple[MatchDecision, PriceBreakdown | None]:
+    decision = review_decision(
+        source, cand.listing, classify(source, cand.listing), reviewer, budget
+    )
     if cand.offer is None:
         return decision, None
     note = LOCATION_NOTES.get(cand.offer.location.verification)
     return decision, price_offer(cand.offer, location_note=note)
 
 
-def evaluate(source: Listing, fetch: FetchResult) -> ResultView:
+def evaluate(
+    source: Listing,
+    fetch: FetchResult,
+    reviewer: MatchReviewer | None = None,
+    budget: ReviewBudget | None = None,
+) -> ResultView:
     code = MarketplaceCode(fetch.marketplace.value)
     base = ResultView(
         marketplace=code,
@@ -138,7 +157,7 @@ def evaluate(source: Listing, fetch: FetchResult) -> ResultView:
             base.status_reason = fetch.error_code
         return base
 
-    scored = [(c, *_scored(source, c)) for c in fetch.candidates]
+    scored = [(c, *_scored(source, c, reviewer, budget)) for c in fetch.candidates]
 
     def key(
         item: tuple[CandidateOffer, MatchDecision, PriceBreakdown | None],
@@ -156,7 +175,7 @@ def evaluate(source: Listing, fetch: FetchResult) -> ResultView:
     base.match_class = decision.match_class
     base.match_score = decision.score
     base.match_reasons = list(decision.reasons)
-    base.is_source = decision.reasons == ("the product you pasted",)
+    base.is_source = decision.reasons == (SOURCE_REASON,)
     if offer is not None and breakdown is not None:
         coupons = [
             CouponView(description=c.description, amount=c.amount, eligibility=c.eligibility.value)

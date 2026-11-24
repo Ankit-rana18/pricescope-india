@@ -18,6 +18,8 @@ dependencies = [
   "httpx>=0.28",
   "pricescope-integrations",
   "pricescope-workers",
+  "rapidfuzz>=3.10",
+  "anthropic>=0.70",
 ]
 
 [dependency-groups]

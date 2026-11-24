@@ -44,6 +44,7 @@ from app.schemas.comparison import (
 )
 from app.services.comparison.evaluate import evaluate, listing_view, name_of, rank_and_summarize
 from app.services.comparison.executors import FetchExecutor, FetchJob
+from app.services.matching import SOURCE_REASON, MatchReviewer, ReviewBudget
 from app.services.url_parser import ParsedProductUrl
 from app.storage.base import TableStore
 from app.storage.errors import RowNotFound
@@ -76,6 +77,8 @@ class ComparisonService:
         max_parallel: int = 4,
         keep_in_memory: int = 200,
         source_policy: RetryPolicy | None = None,
+        reviewer: MatchReviewer | None = None,
+        reviews_per_comparison: int = 6,
     ) -> None:
         self._store = store
         self._adapters = adapters
@@ -84,6 +87,8 @@ class ComparisonService:
         self._reuse_seconds = reuse_seconds
         self._keep = keep_in_memory
         self._source_policy = source_policy or RetryPolicy(deadline_seconds=8)
+        self._reviewer = reviewer
+        self._reviews_per_comparison = reviews_per_comparison
         self._lock = threading.RLock()
         self._views: OrderedDict[str, ComparisonView] = OrderedDict()
         self._futures: dict[str, Future[None]] = {}
@@ -206,9 +211,10 @@ class ComparisonService:
             attributes=source.attributes,
         )
         jobs = [FetchJob(m, query, pincode, source) for m in Marketplace]
+        budget = ReviewBudget(self._reviews_per_comparison)
         try:
             for fetch in self._executor.run(jobs):
-                result = evaluate(source, fetch)
+                result = evaluate(source, fetch, self._reviewer, budget)
                 with self._lock:
                     view = self._views[comparison_id]
                     view.results = [
@@ -494,7 +500,7 @@ class ComparisonService:
             location_verification=row.get("location_verification"),
             eta_text=row.get("eta_text"),
             other_candidates=[CandidateView(**c) for c in row.get("other_candidates") or []],
-            is_source=(row.get("match_reasons") or []) == ["the product you pasted"],
+            is_source=(row.get("match_reasons") or []) == [SOURCE_REASON],
             attempts=row.get("attempts"),
             latency_ms=row.get("latency_ms"),
             checked_at=row.get("checked_at"),

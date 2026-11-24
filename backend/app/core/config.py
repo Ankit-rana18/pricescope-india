@@ -84,7 +84,11 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_jwt_audience: str = "authenticated"
 
+    # Optional AI review of ambiguous matches (Claude API). Off by default; costs tokens.
     llm_review_enabled: bool = False
+    llm_review_model: str = "claude-opus-5-5"
+    llm_review_max_per_comparison: int = Field(default=6, ge=0, le=50)
+    llm_review_timeout_seconds: float = Field(default=12.0, gt=0, le=60)
 
     @model_validator(mode="before")
     @classmethod

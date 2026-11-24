@@ -97,7 +97,7 @@ def test_brand_and_model_without_barcode_is_exact() -> None:
 def test_same_brand_and_size_without_identifier_is_only_probable() -> None:
     d = classify(SRC, L("Saltwise Iodised Salt 1 kg", brand="Saltwise"))
     assert d.match_class is MatchClass.PROBABLE
-    assert "no barcode to confirm" in d.reasons
+    assert "no barcode or model number to confirm" in d.reasons
 
 
 def test_ambiguous_attributes_downgrade_barcode_match_to_probable() -> None:

@@ -3,6 +3,7 @@
 from functools import lru_cache
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends, Response
 from pricescope_integrations.demo.adapter import demo_source_links
 from pricescope_integrations.registry import build_adapters
@@ -26,11 +27,29 @@ from app.services.comparison.executors import (
     ThreadFetchExecutor,
 )
 from app.services.comparison.service import ComparisonService
+from app.services.matching import CachedReviewer, ClaudeMatchReviewer, MatchReviewer
 from app.services.pincode import PincodeError, validate_pincode
 from app.services.url_parser import UrlParseError, resolve_product_url
 from app.storage.factory import get_store
 
 router = APIRouter(tags=["comparisons"])
+log = structlog.get_logger(__name__)
+
+
+def build_reviewer(settings: Settings) -> MatchReviewer | None:
+    """The optional AI match reviewer; None when disabled or not usable."""
+    if not settings.llm_review_enabled:
+        return None
+    try:
+        reviewer = ClaudeMatchReviewer.from_environment(
+            model=settings.llm_review_model,
+            timeout_seconds=settings.llm_review_timeout_seconds,
+        )
+    except Exception as exc:  # e.g. no Anthropic credentials configured
+        log.warning("match_review_disabled", reason=type(exc).__name__)
+        return None
+    log.info("match_review_enabled", model=settings.llm_review_model)
+    return CachedReviewer(reviewer)
 
 
 @lru_cache
@@ -48,6 +67,8 @@ def get_comparison_service() -> ComparisonService:
         adapters,
         executor,
         data_mode=DataMode.DEMO if settings.demo_mode else DataMode.LIVE,
+        reviewer=build_reviewer(settings),
+        reviews_per_comparison=settings.llm_review_max_per_comparison,
     )
 
 

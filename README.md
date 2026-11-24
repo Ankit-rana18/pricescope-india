@@ -22,7 +22,8 @@ pack count and variant) with transparent final prices.
 | 2 | Homepage form: product-link recognition + PIN-code validation (no price lookups yet) | ✅ done |
 | 3 | SSRF-safe short-link resolution; quantity / pack / variant normalization | ✅ done |
 | 4 | Adapter framework, demo + official-shell adapters, concurrent fetches (threads / Celery), matching, pricing, **card offers**, comparison page | ✅ done |
-| 5–9 | See the implementation plan | pending |
+| 5 | Matching engine: barcode check digits, model/brand normalisation + aliases, fuzzy titles, optional AI review | ✅ done |
+| 6–9 | See the implementation plan | pending |
 
 ## Repository layout
 

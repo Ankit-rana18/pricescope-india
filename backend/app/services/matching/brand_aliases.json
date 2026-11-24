@@ -1,0 +1,10 @@
+{
+  "_note": "Spellings of the SAME brand only. Sub-brands (e.g. a phone line) are separate brands and must not be listed here. Case, punctuation, '&'/'and' and spacing differences are folded automatically and need no entry.",
+  "aliases": {
+    "Procter & Gamble": ["P&G", "PnG"],
+    "Hindustan Unilever": ["HUL", "Hindustan Unilever Limited", "Hindustan Unilever Ltd"],
+    "Xiaomi": ["Mi"],
+    "Hewlett Packard": ["HP"],
+    "Johnson & Johnson": ["J&J"]
+  }
+}
