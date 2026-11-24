@@ -13,7 +13,7 @@ Limits (acceptable for the interim, documented in docs/STORAGE.md):
 
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -141,20 +141,36 @@ class SheetsTableStore:
     # ------------------------------------------------------------------ writing
 
     def insert(self, table: str, values: Mapping[str, Any]) -> Row:
+        return self.insert_many(table, [values])[0]
+
+    def insert_many(self, table: str, rows: Sequence[Mapping[str, Any]]) -> list[Row]:
+        """Validate every row first, then write them all in one API call (all or nothing)."""
+        if not rows:
+            return []
         with self._lock:
-            row = schema.apply_insert_defaults(table, values)
             existing = self._rows(table, fresh=True)
             pk = schema.info(table).pk
             pk_col = schema.table(table).c[pk]
-            if row.get(pk) is None and schema.is_autoincrement_int_pk(pk_col):
-                row[pk] = max((r[pk] for _, r in existing), default=0) + 1
-            row = schema.normalize_row(table, row)
-            self._check_unique(table, row, existing, exclude_row=None)
-            self._check_foreign_keys(table, row)
+            auto_int = schema.is_autoincrement_int_pk(pk_col)
+            next_int = max((r[pk] for _, r in existing), default=0) + 1 if auto_int else 0
+            prepared: list[Row] = []
+            for values in rows:
+                row = schema.apply_insert_defaults(table, values)
+                if row.get(pk) is None and auto_int:
+                    row[pk] = next_int
+                    next_int += 1
+                row = schema.normalize_row(table, row)
+                # Earlier rows of this batch count as existing for uniqueness.
+                batch = [(0, r) for r in prepared]
+                self._check_unique(table, row, [*existing, *batch], exclude_row=None)
+                self._check_foreign_keys(table, row)
+                prepared.append(row)
             snap = self._load(table)
-            self._client.append_rows(table, [self._encode(table, snap.headers, row, None)])
+            self._client.append_rows(
+                table, [self._encode(table, snap.headers, r, None) for r in prepared]
+            )
             self._cache.pop(table, None)
-            return row
+            return prepared
 
     def update(self, table: str, pk: Any, changes: Mapping[str, Any]) -> Row:
         with self._lock:

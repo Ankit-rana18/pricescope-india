@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import health, lookup
+from app.api.v1 import comparisons, health, lookup
 from app.core.config import Settings, get_settings
 from app.core.errors import ErrorResponse, register_exception_handlers
 from app.core.logging import configure_logging
@@ -45,6 +45,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health.router, prefix=API_V1)
     app.include_router(lookup.router, prefix=API_V1)
+    app.include_router(comparisons.router, prefix=API_V1)
     return app
 
 

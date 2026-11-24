@@ -121,7 +121,8 @@ class MarketplaceProduct(UUIDPk, Timestamps, Base):
         ForeignKey("product_variants.id", ondelete="SET NULL"), index=True
     )
     external_id: Mapped[str] = mapped_column(String(128))
-    url: Mapped[str] = mapped_column(Text)
+    # Nullable: demo listings have no real page, so no URL is stored or linked.
+    url: Mapped[str | None] = mapped_column(Text)
     title_raw: Mapped[str] = mapped_column(String(1000))
     image_url: Mapped[str | None] = mapped_column(Text)
     attributes: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default="{}")

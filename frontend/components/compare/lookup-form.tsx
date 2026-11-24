@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, ArrowRight, Link2, Loader2, MapPin } from "lucide-react";
+import { AlertCircle, ArrowRight, FlaskConical, Link2, Loader2, MapPin } from "lucide-react";
 import { useForm } from "react-hook-form";
 
-import { LookupResult } from "@/components/compare/lookup-result";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { fieldErrorsOf, validateLookup, type LookupResult as LookupResultData } from "@/lib/api";
+import { ApiError, fieldErrorsOf } from "@/lib/api";
+import { getDemoProducts, startComparison, type DemoProduct } from "@/lib/comparison";
 import { lookupSchema, type LookupFormInput, type LookupFormValues } from "@/lib/validators";
 
 const PIN_STORAGE_KEY = "pricescope:last-pincode";
@@ -31,14 +32,16 @@ function savePin(pin: string): void {
 }
 
 export function LookupForm() {
-  const [result, setResult] = useState<LookupResultData | null>(null);
+  const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
+  const [demoProducts, setDemoProducts] = useState<DemoProduct[]>([]);
 
   const {
     register,
     handleSubmit,
     setError,
     setValue,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<LookupFormInput, unknown, LookupFormValues>({
     resolver: zodResolver(lookupSchema),
@@ -48,19 +51,30 @@ export function LookupForm() {
   useEffect(() => {
     const saved = readSavedPin();
     if (saved) setValue("pincode", saved);
+    // Only present in demo mode (the endpoint 404s otherwise).
+    getDemoProducts()
+      .then(setDemoProducts)
+      .catch(() => setDemoProducts([]));
   }, [setValue]);
 
   async function onSubmit(values: LookupFormValues) {
     setFormError(null);
-    setResult(null);
     try {
-      const data = await validateLookup(values.url, values.pincode);
-      setResult(data);
-      savePin(data.location.pincode);
+      const comparison = await startComparison(values.url, values.pincode);
+      savePin(comparison.pincode);
+      router.push(`/compare/${comparison.id}`);
     } catch (err) {
       const fields = fieldErrorsOf(err);
       if (fields.length > 0) {
         for (const f of fields) setError(f.field, { type: "server", message: f.message });
+        return;
+      }
+      if (err instanceof ApiError && err.status < 500) {
+        setFormError(err.body.message);
+        return;
+      }
+      if (err instanceof ApiError && err.status === 503) {
+        setFormError(err.body.message);
         return;
       }
       setFormError(
@@ -69,12 +83,18 @@ export function LookupForm() {
     }
   }
 
+  function fillDemo(product: DemoProduct) {
+    setValue("url", product.url, { shouldDirty: true });
+    clearErrors("url");
+    setFormError(null);
+  }
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <form
         onSubmit={handleSubmit(onSubmit)}
         noValidate
-        aria-label="Check a product link and PIN code"
+        aria-label="Compare prices for a product"
         className="bg-card rounded-2xl border p-4 shadow-[var(--shadow-card)] sm:p-5"
       >
         <div className="grid gap-4 md:grid-cols-[1fr_11rem_auto] md:items-start">
@@ -133,7 +153,6 @@ export function LookupForm() {
           </div>
 
           <div className="flex flex-col gap-2">
-            {/* Spacer keeps the button aligned with the inputs on desktop. */}
             <span className="hidden text-sm leading-none md:block" aria-hidden>
               &nbsp;
             </span>
@@ -145,11 +164,11 @@ export function LookupForm() {
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="animate-spin" aria-hidden /> Checking…
+                  <Loader2 className="animate-spin" aria-hidden /> Starting…
                 </>
               ) : (
                 <>
-                  Check link & PIN <ArrowRight aria-hidden />
+                  Compare prices <ArrowRight aria-hidden />
                 </>
               )}
             </Button>
@@ -161,6 +180,26 @@ export function LookupForm() {
         </p>
       </form>
 
+      {demoProducts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground inline-flex items-center gap-1.5">
+            <FlaskConical className="size-4" aria-hidden /> Try a demo product:
+          </span>
+          {demoProducts.map((p) => (
+            <Button
+              key={p.key}
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fillDemo(p)}
+              aria-label={`Use demo product ${p.title}`}
+            >
+              {p.title.replace(/\s*\(.*\)\s*$/, "").replace(/,.*$/, "")}
+            </Button>
+          ))}
+        </div>
+      )}
+
       {formError && (
         <div
           role="alert"
@@ -170,8 +209,6 @@ export function LookupForm() {
           <p>{formError}</p>
         </div>
       )}
-
-      {result && <LookupResult result={result} />}
     </div>
   );
 }

@@ -16,6 +16,8 @@ dependencies = [
   "gspread>=6.1",
   "google-auth>=2.35",
   "httpx>=0.28",
+  "pricescope-integrations",
+  "pricescope-workers",
 ]
 
 [dependency-groups]
@@ -28,6 +30,10 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+pricescope-integrations = { path = "../integrations", editable = true }
+pricescope-workers = { path = "../workers", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = ["../tests"]
@@ -53,7 +59,11 @@ ignore = ["S101"]  # assert is fine in tests
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-packages = ["app"]
+files = ["app", "../integrations/pricescope_integrations", "../workers/pricescope_workers"]
+
+[[tool.mypy.overrides]]
+module = ["celery", "celery.*"]
+ignore_missing_imports = true
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

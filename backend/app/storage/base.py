@@ -5,7 +5,7 @@ aware datetime, enum members, JSON-compatible dicts/lists). Feature code depends
 interface only, so the backend can move from Google Sheets to PostgreSQL by configuration.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
 Row = dict[str, Any]
@@ -19,6 +19,9 @@ class TableStore(Protocol):
 
     def insert(self, table: str, values: Mapping[str, Any]) -> Row:
         """Validate, apply defaults, enforce keys; return the stored row."""
+
+    def insert_many(self, table: str, rows: Sequence[Mapping[str, Any]]) -> list[Row]:
+        """Insert several rows atomically (one round trip where the backend allows)."""
 
     def get(self, table: str, pk: Any) -> Row:
         """Return one row by primary key or raise RowNotFound."""

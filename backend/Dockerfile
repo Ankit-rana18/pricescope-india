@@ -1,4 +1,6 @@
-# Build context: repository root (so integrations/ and workers/ can be added in later phases).
+# Build context: repository root. One image serves the API and the Celery worker.
+# Layout mirrors the repo (/app = backend, /integrations, /workers) because the backend
+# installs the two packages from ../integrations and ../workers.
 FROM python:3.12-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -8,12 +10,16 @@ COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/uv
 WORKDIR /app
 
 FROM base AS deps
+COPY integrations/ /integrations/
+COPY workers/ /workers/
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 FROM base AS runtime
 RUN useradd --system --uid 10001 --create-home pricescope
 COPY --from=deps /app/.venv /app/.venv
+COPY integrations/ /integrations/
+COPY workers/ /workers/
 COPY backend/ /app/
 ENV PATH="/app/.venv/bin:$PATH"
 USER pricescope

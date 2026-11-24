@@ -1,6 +1,6 @@
 # PriceScope India — Implementation Plan
 
-Status: **Phase 1 complete** (2026-11-21). Phases 2–9 pending.
+Status: **Phases 1–4 complete** (2026-11-24). Phases 5–9 pending. Storage is Google Sheets for now (see docs/STORAGE.md).
 
 ## 0. Repository inspection
 
@@ -321,3 +321,18 @@ Each phase is built and tested before the next one starts. I'll report actual te
 2. **Marketplace access.** Do you have, or are you applying for, Amazon Associates / Creators API access or a Flipkart Affiliate account? This changes nothing in the build order. It only decides whether a live adapter gets tested against real credentials.
 3. **Quick-commerce data provider.** Blinkit, Zepto and BigBasket stay `UNSUPPORTED` outside demo mode until you choose a licensed provider. I will not wire up unofficial endpoints.
 4. **LLM review.** It is off by default. If you want it, it would use the Claude API with your `ANTHROPIC_API_KEY` set on the server.
+
+---
+
+## 12. Added during build: card / bank offers (Phase 4)
+
+- Each offer may carry `card_offers` (bank, credit/debit, network, % or flat, cap, minimum
+  order, EMI-only, terms) when the marketplace's authorized channel provides them.
+- Evaluated on the order value (item price minus verified discounts): cap and minimum order
+  applied. The best offer is the largest **regular** one; EMI-only offers win only if nothing
+  else applies.
+- Never part of the final price: eligibility depends on the shopper's card. Shown as "price
+  with best card" per marketplace and "best with a card offer" overall, with delivery caveats.
+- Phase 8: users can save which banks' cards they hold, so "best" uses only their cards.
+- Real card data depends on what each approved API exposes; until verified, only demo data
+  (fictional "Demo Bank" offers) contains card offers.

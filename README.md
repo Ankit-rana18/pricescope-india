@@ -21,7 +21,8 @@ pack count and variant) with transparent final prices.
 | 1b | Google Sheets storage backend (interim), shared validation, contract tests | ✅ done |
 | 2 | Homepage form: product-link recognition + PIN-code validation (no price lookups yet) | ✅ done |
 | 3 | SSRF-safe short-link resolution; quantity / pack / variant normalization | ✅ done |
-| 4–9 | See the implementation plan | pending |
+| 4 | Adapter framework, demo + official-shell adapters, concurrent fetches (threads / Celery), matching, pricing, **card offers**, comparison page | ✅ done |
+| 5–9 | See the implementation plan | pending |
 
 ## Repository layout
 
@@ -31,8 +32,8 @@ frontend/       Next.js 15 + TypeScript + Tailwind v4 + shadcn/ui
 database/       Postgres init scripts, schema notes
 docs/           Plan and design docs
 tests/          Backend unit + integration tests (pytest)
-integrations/   Marketplace adapters        (Phase 4)
-workers/        Celery tasks                (Phase 4)
+integrations/   Marketplace adapters (installable package, independent of the backend)
+workers/        Celery tasks: marketplace I/O only
 ```
 
 ## Prerequisites

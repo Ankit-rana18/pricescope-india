@@ -1,135 +1,142 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LookupForm } from "@/components/compare/lookup-form";
-import type { LookupResult } from "@/lib/api";
 
-const SUCCESS: LookupResult = {
-  product: {
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+
+const DEMO = [
+  {
+    key: "nimbus-x2-phone",
+    title: "Nimbus X2 5G (Midnight Black, 8GB RAM, 128GB Storage)",
     marketplace: "AMAZON_IN",
-    marketplace_name: "Amazon India",
-    external_id: "B07JGFGW3V",
-    id_type: "ASIN",
-    canonical_url: "https://www.amazon.in/dp/B07JGFGW3V",
-    resolved_from: null,
+    url: "https://www.amazon.in/dp/DEMO000003",
   },
-  location: {
-    pincode: "560001",
-    postal_region: "Southern",
-    directory_status: "UNAVAILABLE",
-    district: null,
-    state: null,
-    post_offices: 0,
-    delivery_note: "A valid PIN code does not guarantee delivery.",
-  },
-  comparison_available: false,
-};
+];
 
-function mockFetch(status: number, body: unknown) {
-  return vi.spyOn(globalThis, "fetch").mockResolvedValue(
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { "Content-Type": "application/json" },
-    }),
-  );
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
-async function fillAndSubmit(url: string, pincode: string) {
+/** Route fetch by URL: the demo list, and whatever the comparison POST should return. */
+function mockApi(post: Response | Error, demo: unknown = DEMO) {
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.endsWith("/api/v1/demo/products")) return json(demo ? 200 : 404, demo ?? {});
+    if (post instanceof Error) throw post;
+    return post;
+  });
+}
+
+async function submit(url: string, pincode: string) {
   const user = userEvent.setup();
   if (url) await user.type(screen.getByLabelText("Product link"), url);
-  if (pincode) await user.type(screen.getByLabelText("PIN code"), pincode);
-  await user.click(screen.getByRole("button", { name: /check link & pin/i }));
+  if (pincode) {
+    await user.clear(screen.getByLabelText("PIN code"));
+    await user.type(screen.getByLabelText("PIN code"), pincode);
+  }
+  await user.click(screen.getByRole("button", { name: /compare prices/i }));
 }
 
 describe("LookupForm", () => {
-  it("shows inline errors without calling the API when fields are empty", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-    render(<LookupForm />);
-    await fillAndSubmit("", "");
+  beforeEach(() => push.mockReset());
 
+  it("shows inline errors without starting a comparison", async () => {
+    const spy = mockApi(json(202, {}));
+    render(<LookupForm />);
+    await submit("", "");
     expect(await screen.findByText("Paste a product link.")).toBeInTheDocument();
     expect(screen.getByText("Enter your 6-digit PIN code.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Product link")).toHaveAttribute("aria-invalid", "true");
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(spy.mock.calls.some(([u]) => String(u).endsWith("/comparisons"))).toBe(false);
+  });
+
+  it("starts a comparison and opens its page", async () => {
+    const spy = mockApi(json(202, { id: "abc-123", pincode: "560001", status: "RUNNING" }));
+    render(<LookupForm />);
+    await submit("https://www.amazon.in/dp/DEMO000003", "560 001");
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/compare/abc-123"));
+    const post = spy.mock.calls.find(([u]) => String(u).endsWith("/api/v1/comparisons"));
+    expect(JSON.parse(String(post?.[1]?.body))).toEqual({
+      url: "https://www.amazon.in/dp/DEMO000003",
+      pincode: "560001",
+    });
+    expect(window.localStorage.getItem("pricescope:last-pincode")).toBe("560001");
   });
 
   it("puts server field errors next to the right field", async () => {
-    mockFetch(422, {
-      error: {
-        code: "invalid_input",
-        message: "Paste a link from Amazon India, Flipkart, Blinkit, Zepto or BigBasket.",
-        details: {
-          fields: [
-            {
-              field: "url",
-              code: "unsupported_marketplace",
-              message: "Paste a link from Amazon India, Flipkart, Blinkit, Zepto or BigBasket.",
-            },
-          ],
+    mockApi(
+      json(422, {
+        error: {
+          code: "invalid_input",
+          message: "x",
+          details: {
+            fields: [
+              {
+                field: "url",
+                code: "unsupported_marketplace",
+                message: "Paste a link from Amazon India…",
+              },
+            ],
+          },
         },
-        request_id: "abc",
-      },
-    });
+      }),
+    );
     render(<LookupForm />);
-    await fillAndSubmit("https://www.amazon.com/dp/B07JGFGW3V", "560001");
-
-    const message = await screen.findByText(/Paste a link from Amazon India/);
-    expect(message).toHaveAttribute("id", "url-error");
-    expect(screen.queryByText(/Price comparison isn't available yet/)).not.toBeInTheDocument();
+    await submit("https://example.com/p", "560001");
+    expect(await screen.findByText("Paste a link from Amazon India…")).toHaveAttribute(
+      "id",
+      "url-error",
+    );
+    expect(push).not.toHaveBeenCalled();
   });
 
-  it("shows what was recognised, and says honestly that nothing was compared", async () => {
-    const fetchSpy = mockFetch(200, SUCCESS);
-    render(<LookupForm />);
-    await fillAndSubmit("https://www.amazon.in/dp/B07JGFGW3V", "560 001");
-
-    expect(await screen.findByText("Amazon India")).toBeInTheDocument();
-    expect(screen.getByText("B07JGFGW3V")).toBeInTheDocument();
-    expect(screen.getByText("Format checked only")).toBeInTheDocument();
-    expect(screen.getByText(/Price comparison isn't available yet/)).toBeInTheDocument();
-
-    const link = screen.getByRole("link", { name: /open on amazon india/i });
-    expect(link).toHaveAttribute("href", "https://www.amazon.in/dp/B07JGFGW3V");
-    expect(link).toHaveAttribute("rel", "noopener noreferrer nofollow");
-
-    const [, init] = fetchSpy.mock.calls[0]!;
-    expect(JSON.parse(String(init?.body))).toEqual({
-      url: "https://www.amazon.in/dp/B07JGFGW3V",
-      pincode: "560001",
-    });
-    await waitFor(() =>
-      expect(window.localStorage.getItem("pricescope:last-pincode")).toBe("560001"),
+  it("explains when the source marketplace isn't connected", async () => {
+    mockApi(
+      json(503, {
+        error: { code: "source_unavailable", message: "Amazon India isn't connected yet…" },
+      }),
     );
+    render(<LookupForm />);
+    await submit("https://www.amazon.in/dp/B07JGFGW3V", "560001");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Amazon India isn't connected yet");
   });
 
   it("explains when the service can't be reached", async () => {
-    vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("Failed to fetch"));
+    mockApi(new TypeError("Failed to fetch"));
     render(<LookupForm />);
-    await fillAndSubmit("https://www.amazon.in/dp/B07JGFGW3V", "560001");
-
+    await submit("https://www.amazon.in/dp/DEMO000003", "560001");
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /couldn't reach the PriceScope service/,
     );
   });
 
+  it("demo buttons fill the link (demo mode only)", async () => {
+    mockApi(json(202, {}));
+    render(<LookupForm />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /use demo product nimbus/i }));
+    expect(screen.getByLabelText("Product link")).toHaveValue(
+      "https://www.amazon.in/dp/DEMO000003",
+    );
+  });
+
+  it("shows no demo buttons outside demo mode", async () => {
+    const spy = mockApi(json(202, {}), null);
+    render(<LookupForm />);
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    expect(screen.queryByText(/try a demo product/i)).not.toBeInTheDocument();
+  });
+
   it("pre-fills the last PIN code used", async () => {
+    mockApi(json(202, {}));
     window.localStorage.setItem("pricescope:last-pincode", "110001");
     render(<LookupForm />);
     await waitFor(() => expect(screen.getByLabelText("PIN code")).toHaveValue("110001"));
-  });
-
-  it("shows the short link a product was found through", async () => {
-    mockFetch(200, {
-      ...SUCCESS,
-      product: { ...SUCCESS.product, resolved_from: "https://amzn.in/d/7xYz" },
-    });
-    render(<LookupForm />);
-    await fillAndSubmit("amzn.in/d/7xYz", "560001");
-
-    expect(await screen.findByText("Short link")).toBeInTheDocument();
-    expect(screen.getByText("https://amzn.in/d/7xYz")).toBeInTheDocument();
-    expect(screen.getByText(/only followed your short link/)).toBeInTheDocument();
-    expect(screen.queryByText(/No marketplace was contacted/)).not.toBeInTheDocument();
   });
 });

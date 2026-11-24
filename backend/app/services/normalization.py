@@ -62,6 +62,13 @@ _NETWORK = re.compile(r"(?<![\w.])[2-6]G(?![a-zA-Z0-9])")
 # Strength ("500 mg") is not a net quantity.
 _STRENGTH = re.compile(rf"(?<![\w.]){_NUM}\s*mg(?![a-z0-9])", re.I)
 
+# "+ 1 kg free", "free 100 g", "20% extra": a bonus changes what you actually get.
+_BONUS = re.compile(
+    rf"\+\s*{_NUM}\s*(?:{_UNIT_ALT})\s*(?:free|extra|bonus)\b"
+    rf"|\b(?:free|extra|bonus)\s*{_NUM}\s*(?:{_UNIT_ALT})(?![a-z0-9])"
+    r"|\b\d{1,3}\s*%\s*(?:extra|more|free)\b",
+    re.I,
+)
 _RAM = re.compile(r"(\d{1,3})\s*GB\s*RAM\b", re.I)
 _RAM_STORAGE_PAIR = re.compile(r"\b(\d{1,2})\s*(?:GB)?\s*[/+|]\s*(\d{2,4})\s*(GB|TB)\b", re.I)
 _STORAGE = re.compile(r"(\d{1,4})\s*(GB|TB)\b(?!\s*RAM)", re.I)
@@ -204,6 +211,9 @@ def normalize_attributes(
     text = clean_text(title)
     warnings: list[str] = []
     scan = _NETWORK.sub(" ", text)  # "Redmi 13 5G" must not read as 5 grams
+
+    if _BONUS.search(scan):
+        warnings.append("includes a free or bonus quantity")
 
     strength = None
     if m := _STRENGTH.search(scan):

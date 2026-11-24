@@ -1,7 +1,7 @@
 """TableStore on PostgreSQL (SQLAlchemy Core). Same validation as the Sheets store;
 the database's own constraints remain as a backstop."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import sqlalchemy as sa
@@ -39,22 +39,33 @@ class SqlTableStore:
         except ConstraintViolation:
             raise RowNotFound(table, pk) from None
 
-    def insert(self, table: str, values: Mapping[str, Any]) -> Row:
-        tbl = schema.table(table)
+    def _prepare(self, table: str, values: Mapping[str, Any]) -> Row:
+        pk_col = schema.table(table).c[schema.info(table).pk]
         row = schema.apply_insert_defaults(table, values)
-        pk_col = tbl.c[schema.info(table).pk]
-        auto_pk = row.get(pk_col.name) is None and schema.is_autoincrement_int_pk(pk_col)
-        if auto_pk:
+        if row.get(pk_col.name) is None and schema.is_autoincrement_int_pk(pk_col):
             # Let the database sequence assign it; validate the rest.
             row[pk_col.name] = 1
             row = schema.normalize_row(table, row)
             del row[pk_col.name]
-        else:
-            row = schema.normalize_row(table, row)
+            return row
+        return schema.normalize_row(table, row)
+
+    def insert(self, table: str, values: Mapping[str, Any]) -> Row:
+        return self.insert_many(table, [values])[0]
+
+    def insert_many(self, table: str, rows: Sequence[Mapping[str, Any]]) -> list[Row]:
+        if not rows:
+            return []
+        tbl = schema.table(table)
+        prepared = [self._prepare(table, r) for r in rows]
         try:
             with self._engine.begin() as conn:
-                result = conn.execute(sa.insert(tbl).values(**row).returning(*tbl.c)).mappings()
-                return dict(result.one())
+                return [
+                    dict(
+                        conn.execute(sa.insert(tbl).values(**r).returning(*tbl.c)).mappings().one()
+                    )
+                    for r in prepared
+                ]
         except (IntegrityError, DataError) as exc:
             raise _as_violation(table, exc) from exc
 

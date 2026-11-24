@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     Numeric,
     String,
     Text,
@@ -131,6 +132,17 @@ class ComparisonResult(UUIDPk, Timestamps, Base):
     )
     eta_text: Mapped[str | None] = mapped_column(String(120))
     error_code: Mapped[str | None] = mapped_column(String(64))
+    error_message: Mapped[str | None] = mapped_column(Text)
+    # Card / bank offers: shown separately, never part of final_price.
+    card_offers: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, server_default="[]")
+    best_card_discount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    price_after_best_card: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    # Notes per fee, e.g. {"other_fees": "Small-cart fee"}.
+    charge_notes: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default="{}")
+    # Other listings found on this marketplace (probable matches, rejected variants).
+    other_candidates: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, server_default="[]")
+    attempts: Mapped[int | None] = mapped_column(Integer)
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
     checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     comparison: Mapped[Comparison] = relationship(back_populates="results")

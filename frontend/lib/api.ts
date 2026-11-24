@@ -51,29 +51,6 @@ export async function apiFetch<T>(
 }
 
 export type MarketplaceCode = "AMAZON_IN" | "FLIPKART" | "BLINKIT" | "ZEPTO" | "BIGBASKET";
-export type DirectoryStatus = "VERIFIED" | "NOT_FOUND" | "UNAVAILABLE";
-
-export interface LookupResult {
-  product: {
-    marketplace: MarketplaceCode;
-    marketplace_name: string;
-    external_id: string;
-    id_type: string;
-    canonical_url: string;
-    resolved_from: string | null;
-  };
-  location: {
-    pincode: string;
-    postal_region: string;
-    directory_status: DirectoryStatus;
-    district: string | null;
-    state: string | null;
-    post_offices: number;
-    delivery_note: string;
-  };
-  comparison_available: false;
-}
-
 export interface FieldError {
   field: "url" | "pincode";
   code: string;
@@ -85,15 +62,6 @@ export function fieldErrorsOf(err: unknown): FieldError[] {
   if (!(err instanceof ApiError) || err.body.code !== "invalid_input") return [];
   const details = err.body.details as { fields?: FieldError[] } | undefined;
   return Array.isArray(details?.fields) ? details.fields : [];
-}
-
-export function validateLookup(url: string, pincode: string): Promise<LookupResult> {
-  return apiFetch<LookupResult>("/api/v1/lookups/validate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, pincode }),
-    cache: "no-store",
-  });
 }
 
 /** Server-side readiness lookup; returns null when the API is unreachable. */

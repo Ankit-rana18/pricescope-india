@@ -1,0 +1,326 @@
+{
+  "notice": "DEMO DATA. Fictional brands, barcodes in the GS1 20-29 in-house range, fictional banks. Not real products, prices, fees, stock or offers.",
+  "metro_pin_prefixes": ["110", "122", "201", "400", "411", "500", "560", "600", "700"],
+  "products": [
+    {
+      "key": "saltwise-salt-1kg",
+      "behaviour": {},
+      "listings": {
+        "AMAZON_IN": [
+          {
+            "external_id": "DEMO000001",
+            "title": "Saltwise Iodised Salt, 1 kg",
+            "brand": "Saltwise",
+            "gtin": "2000000000015",
+            "offer": {
+              "item_price": "28", "mrp": "30",
+              "delivery_fee": {"status": "KNOWN", "amount": "0", "note": "Free delivery on this demo order"},
+              "handling_fee": {"status": "NOT_APPLICABLE"},
+              "platform_fee": {"status": "NOT_APPLICABLE"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "availability": "IN_STOCK", "location": "national", "eta": "Tomorrow"
+            }
+          }
+        ],
+        "FLIPKART": [
+          {
+            "external_id": "DEMOSALT00000001",
+            "title": "Saltwise Iodised Salt 1 kg",
+            "brand": "Saltwise",
+            "gtin": "2000000000015",
+            "offer": {
+              "item_price": "27", "mrp": "30",
+              "delivery_fee": {"status": "UNKNOWN", "note": "Depends on cart value"},
+              "handling_fee": {"status": "NOT_APPLICABLE"},
+              "platform_fee": {"status": "KNOWN", "amount": "3"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "availability": "IN_STOCK", "location": "unverifiable"
+            }
+          }
+        ],
+        "BLINKIT": [
+          {
+            "external_id": "9000001",
+            "title": "Saltwise Iodised Salt (1 kg)",
+            "brand": "Saltwise",
+            "gtin": "2000000000015",
+            "offer": {
+              "item_price": "29", "mrp": "30",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "KNOWN", "amount": "4"},
+              "platform_fee": {"status": "KNOWN", "amount": "2"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "availability": "IN_STOCK", "location": "metro", "eta": "12 minutes"
+            }
+          }
+        ],
+        "ZEPTO": [
+          {
+            "external_id": "00000000-0000-4000-8000-000000000001",
+            "title": "Saltwise Iodised Salt, 500 g",
+            "brand": "Saltwise",
+            "gtin": "2000000000022",
+            "offer": {
+              "item_price": "16", "mrp": "17",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "KNOWN", "amount": "3"},
+              "platform_fee": {"status": "KNOWN", "amount": "2"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "availability": "IN_STOCK", "location": "metro", "eta": "10 minutes"
+            }
+          }
+        ],
+        "BIGBASKET": [
+          {
+            "external_id": "9000101",
+            "title": "Saltwise Iodised Salt - 1 kg",
+            "brand": "Saltwise",
+            "gtin": "2000000000015",
+            "offer": {
+              "item_price": "26", "mrp": "30",
+              "delivery_fee": {"status": "KNOWN", "amount": "30", "note": "Below minimum order value"},
+              "handling_fee": {"status": "NOT_APPLICABLE"},
+              "platform_fee": {"status": "NOT_APPLICABLE"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "coupons": [{"description": "SAVE5 on first order", "amount": "5", "eligibility": "UNVERIFIED"}],
+              "availability": "IN_STOCK", "location": "metro", "eta": "Tomorrow 7-9 AM"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "key": "golden-meadow-butter-500g",
+      "behaviour": {"ZEPTO": "timeout", "AMAZON_IN": "rate_limited_once"},
+      "listings": {
+        "AMAZON_IN": [
+          {
+            "external_id": "DEMO000002",
+            "title": "Golden Meadow Salted Butter 500 g",
+            "brand": "Golden Meadow",
+            "gtin": "2000000000039",
+            "offer": {
+              "item_price": "275", "mrp": "285",
+              "delivery_fee": {"status": "KNOWN", "amount": "40"},
+              "handling_fee": {"status": "NOT_APPLICABLE"},
+              "platform_fee": {"status": "NOT_APPLICABLE"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "availability": "IN_STOCK", "location": "national", "eta": "In 2 days"
+            }
+          }
+        ],
+        "FLIPKART": [
+          {
+            "external_id": "DEMOBTTR00000002",
+            "title": "Golden Meadow Salted Butter 500 g (Pack of 2)",
+            "brand": "Golden Meadow",
+            "gtin": "2000000000046",
+            "offer": {
+              "item_price": "540", "mrp": "570",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "NOT_APPLICABLE"},
+              "platform_fee": {"status": "KNOWN", "amount": "3"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "availability": "IN_STOCK", "location": "unverifiable"
+            }
+          }
+        ],
+        "BLINKIT": [
+          {
+            "external_id": "9000002",
+            "title": "Golden Meadow Salted Butter (500 g)",
+            "brand": "Golden Meadow",
+            "gtin": "2000000000039",
+            "offer": {
+              "item_price": "268", "mrp": "285",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "KNOWN", "amount": "4"},
+              "platform_fee": {"status": "KNOWN", "amount": "2"},
+              "other_fees": {"status": "KNOWN", "amount": "15", "note": "Small-cart fee"},
+              "availability": "IN_STOCK", "location": "metro", "eta": "11 minutes"
+            }
+          }
+        ],
+        "ZEPTO": [],
+        "BIGBASKET": [
+          {
+            "external_id": "9000102",
+            "title": "Golden Meadow Salted Butter 500 g Carton",
+            "brand": "Golden Meadow",
+            "gtin": "2000000000039",
+            "offer": {
+              "item_price": "262", "mrp": "285",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "NOT_APPLICABLE"},
+              "platform_fee": {"status": "NOT_APPLICABLE"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "availability": "OUT_OF_STOCK", "location": "metro"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "key": "nimbus-x2-phone",
+      "behaviour": {"BIGBASKET": "error"},
+      "listings": {
+        "AMAZON_IN": [
+          {
+            "external_id": "DEMO000003",
+            "title": "Nimbus X2 5G (Midnight Black, 8GB RAM, 128GB Storage)",
+            "brand": "Nimbus",
+            "model": "NX2-8128",
+            "gtin": "2000000000053",
+            "attributes": {"colour": "Midnight Black"},
+            "offer": {
+              "item_price": "14999", "mrp": "17999",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "NOT_APPLICABLE"},
+              "platform_fee": {"status": "NOT_APPLICABLE"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "card_offers": [
+                {"bank": "Demo Bank A", "card_type": "CREDIT", "kind": "PERCENT", "value": "10", "max_discount": "1500", "min_order_value": "5000"},
+                {"bank": "Demo Bank B", "card_type": "CREDIT", "kind": "FLAT", "value": "2000", "min_order_value": "10000", "emi_only": true, "terms": "On 6-month EMI only"},
+                {"bank": "Demo Bank C", "card_type": "DEBIT", "kind": "FLAT", "value": "750", "min_order_value": "12000"}
+              ],
+              "availability": "IN_STOCK", "location": "national", "eta": "Tomorrow"
+            }
+          }
+        ],
+        "FLIPKART": [
+          {
+            "external_id": "DEMOPHNE00000003",
+            "title": "Nimbus X2 5G (Midnight Black, 128 GB) (8 GB RAM)",
+            "brand": "Nimbus",
+            "model": "NX2-8128",
+            "gtin": "2000000000053",
+            "attributes": {"colour": "Midnight Black"},
+            "offer": {
+              "item_price": "14499", "mrp": "17999",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "NOT_APPLICABLE"},
+              "platform_fee": {"status": "KNOWN", "amount": "9"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "coupons": [{"description": "Extra ₹500 off (applied at checkout)", "amount": "500", "eligibility": "VERIFIED"}],
+              "card_offers": [
+                {"bank": "Demo Bank A", "card_type": "CREDIT", "kind": "PERCENT", "value": "5", "max_discount": "750"},
+                {"bank": "Demo Bank C", "card_type": "CREDIT", "card_network": "RuPay", "kind": "FLAT", "value": "1250", "min_order_value": "12000"}
+              ],
+              "availability": "IN_STOCK", "location": "unverifiable"
+            }
+          },
+          {
+            "external_id": "DEMOPHNE00000004",
+            "title": "Nimbus X2 5G (Ocean Blue, 128 GB) (8 GB RAM)",
+            "brand": "Nimbus",
+            "model": "NX2-8128",
+            "gtin": "2000000000060",
+            "attributes": {"colour": "Ocean Blue"},
+            "offer": {
+              "item_price": "13999", "mrp": "17999",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "NOT_APPLICABLE"},
+              "platform_fee": {"status": "KNOWN", "amount": "9"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "availability": "IN_STOCK", "location": "unverifiable"
+            }
+          }
+        ],
+        "BLINKIT": [],
+        "ZEPTO": [],
+        "BIGBASKET": []
+      }
+    },
+    {
+      "key": "sparklewash-detergent-2kg",
+      "behaviour": {},
+      "listings": {
+        "AMAZON_IN": [
+          {
+            "external_id": "DEMO000004",
+            "title": "SparkleWash Matic Detergent Powder 2 kg",
+            "brand": "SparkleWash",
+            "gtin": "2000000000077",
+            "offer": {
+              "item_price": "389", "mrp": "430",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "NOT_APPLICABLE"},
+              "platform_fee": {"status": "NOT_APPLICABLE"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "card_offers": [
+                {"bank": "Demo Bank B", "card_type": "CREDIT", "kind": "PERCENT", "value": "10", "max_discount": "100", "min_order_value": "500"}
+              ],
+              "availability": "IN_STOCK", "location": "national", "eta": "In 2 days"
+            }
+          }
+        ],
+        "FLIPKART": [
+          {
+            "external_id": "DEMODTRG00000005",
+            "title": "SparkleWash Matic Detergent Powder 2 kg",
+            "brand": "SparkleWash",
+            "offer": {
+              "item_price": "379", "mrp": "430",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "NOT_APPLICABLE"},
+              "platform_fee": {"status": "KNOWN", "amount": "3"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "availability": "IN_STOCK", "location": "unverifiable"
+            }
+          }
+        ],
+        "BLINKIT": [
+          {
+            "external_id": "9000004",
+            "title": "SparkleWash Matic Detergent Powder (2 kg)",
+            "brand": "SparkleWash",
+            "gtin": "2000000000077",
+            "offer": {
+              "item_price": "395", "mrp": "430",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "KNOWN", "amount": "4"},
+              "platform_fee": {"status": "KNOWN", "amount": "2"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "availability": "IN_STOCK", "location": "precise"
+            }
+          }
+        ],
+        "ZEPTO": [
+          {
+            "external_id": "00000000-0000-4000-8000-000000000004",
+            "title": "SparkleWash Matic Detergent Powder 2 kg",
+            "brand": "SparkleWash",
+            "gtin": "2000000000077",
+            "offer": {
+              "item_price": "384", "mrp": "430",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "KNOWN", "amount": "3"},
+              "platform_fee": {"status": "KNOWN", "amount": "2"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "availability": "IN_STOCK", "location": "metro", "eta": "9 minutes"
+            }
+          }
+        ],
+        "BIGBASKET": [
+          {
+            "external_id": "9000104",
+            "title": "SparkleWash Matic Detergent Powder 2 kg",
+            "brand": "SparkleWash",
+            "gtin": "2000000000077",
+            "offer": {
+              "item_price": "372", "mrp": "430",
+              "delivery_fee": {"status": "KNOWN", "amount": "0"},
+              "handling_fee": {"status": "NOT_APPLICABLE"},
+              "platform_fee": {"status": "NOT_APPLICABLE"},
+              "other_fees": {"status": "NOT_APPLICABLE"},
+              "card_offers": [
+                {"bank": "Demo Bank C", "card_type": "CREDIT", "kind": "FLAT", "value": "50", "min_order_value": "1000"}
+              ],
+              "availability": "IN_STOCK", "location": "metro", "eta": "Tomorrow 7-9 AM"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
