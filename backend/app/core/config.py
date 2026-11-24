@@ -20,6 +20,12 @@ class AuthMode(StrEnum):
     DEV = "dev"
 
 
+class StorageBackendName(StrEnum):
+    # Interim primary store: one tab per table in a Google spreadsheet.
+    SHEETS = "sheets"
+    POSTGRES = "postgres"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="PRICESCOPE_",
@@ -38,6 +44,17 @@ class Settings(BaseSettings):
         "postgresql+psycopg://pricescope:change-me-local-only@127.0.0.1:5432/pricescope"
     )
     redis_url: SecretStr = SecretStr("redis://127.0.0.1:6379/0")
+
+    storage_backend: StorageBackendName = StorageBackendName.SHEETS
+    google_sheets_spreadsheet_id: str = ""
+    # Service-account credentials: a file path (local dev) or the JSON itself (hosted envs).
+    google_service_account_file: str = ""
+    google_service_account_json: SecretStr | None = None
+    # How long a tab's contents are reused before re-reading (own writes invalidate at once).
+    sheets_cache_ttl_seconds: float = Field(default=10.0, ge=0, le=300)
+
+    # India Post PIN directory CSV (open data). Empty = existence check unavailable.
+    pincode_directory_file: str = ""
 
     auth_mode: AuthMode = AuthMode.DEV
     supabase_url: str = ""
@@ -63,11 +80,23 @@ class Settings(BaseSettings):
                 raise ValueError("PRICESCOPE_SUPABASE_URL is required in production")
             if "*" in self.cors_origins:
                 raise ValueError("Wildcard CORS origin is not allowed in production")
+            if self.storage_backend is StorageBackendName.SHEETS and not self.sheets_configured:
+                raise ValueError(
+                    "Google Sheets storage needs PRICESCOPE_GOOGLE_SHEETS_SPREADSHEET_ID and "
+                    "service-account credentials in production"
+                )
         return self
 
     @property
     def is_production(self) -> bool:
         return self.env is Environment.PRODUCTION
+
+    @property
+    def sheets_configured(self) -> bool:
+        has_credentials = bool(self.google_service_account_file) or bool(
+            self.google_service_account_json and self.google_service_account_json.get_secret_value()
+        )
+        return bool(self.google_sheets_spreadsheet_id) and has_credentials
 
 
 @lru_cache

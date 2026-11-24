@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import health
+from app.api.v1 import health, lookup
 from app.core.config import Settings, get_settings
 from app.core.errors import ErrorResponse, register_exception_handlers
 from app.core.logging import configure_logging
@@ -40,8 +40,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.add_middleware(RequestContextMiddleware)
     register_exception_handlers(app)
+    # Endpoints must see the settings this app was built with, not a fresh global copy.
+    app.dependency_overrides[get_settings] = lambda: settings
 
     app.include_router(health.router, prefix=API_V1)
+    app.include_router(lookup.router, prefix=API_V1)
     return app
 
 

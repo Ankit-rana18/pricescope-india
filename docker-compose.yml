@@ -36,7 +36,11 @@ services:
     environment:
       PRICESCOPE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pricescope}:${POSTGRES_PASSWORD:-change-me-local-only}@postgres:5432/${POSTGRES_DB:-pricescope}
       PRICESCOPE_REDIS_URL: redis://redis:6379/0
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    # Migrations run only when PostgreSQL is the active store. For Google Sheets, pass the
+    # service-account key as PRICESCOPE_GOOGLE_SERVICE_ACCOUNT_JSON (not a file path).
+    command: >-
+      sh -c 'if [ "$${PRICESCOPE_STORAGE_BACKEND:-sheets}" = "postgres" ]; then alembic upgrade head; fi
+      && uvicorn app.main:app --host 0.0.0.0 --port 8000'
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

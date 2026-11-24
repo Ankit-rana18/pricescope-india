@@ -1,5 +1,6 @@
 import { BadgeCheck, Link2, MapPin, Scale } from "lucide-react";
 
+import { LookupForm } from "@/components/compare/lookup-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 
@@ -21,12 +22,10 @@ const STEPS = [
   },
 ] as const;
 
-const MARKETPLACES = ["Amazon India", "Flipkart", "Blinkit", "Zepto", "BigBasket"] as const;
-
 export default function HomePage() {
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6">
-      <section className="animate-in fade-in slide-in-from-bottom-2 py-16 duration-300 sm:py-24">
+      <section className="animate-in fade-in slide-in-from-bottom-2 py-12 duration-300 sm:py-20">
         <Badge tone="accent" className="mb-5">
           <BadgeCheck aria-hidden /> Exact-match comparisons only
         </Badge>
@@ -38,15 +37,9 @@ export default function HomePage() {
           delivery, handling and platform fees openly. Anything we can&apos;t verify is labelled as
           unverified, never guessed.
         </p>
-        <ul className="mt-8 flex flex-wrap gap-2" aria-label="Marketplaces covered">
-          {MARKETPLACES.map((m) => (
-            <li key={m}>
-              <Badge tone="neutral" className="px-3 py-1 text-sm">
-                {m}
-              </Badge>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-8 max-w-4xl">
+          <LookupForm />
+        </div>
       </section>
 
       <section aria-labelledby="how-it-works" className="pb-20">

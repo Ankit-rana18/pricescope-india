@@ -12,10 +12,11 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import DataError, IntegrityError
 
-from app.core.config import Environment, Settings
-from app.db.session import get_db
+from app.api.v1.health import storage_provider
+from app.core.config import Environment, Settings, StorageBackendName
 from app.main import create_app
 from app.models import Base
+from app.storage.sql_store import SqlTableStore
 
 pytestmark = pytest.mark.db
 
@@ -144,21 +145,21 @@ def test_complete_final_price_requires_value(alembic_config: Config, pg_engine: 
         )
 
 
-def test_readiness_reports_database_ok(pg_engine: Engine) -> None:
-    from sqlalchemy.orm import sessionmaker
-
-    app = create_app(Settings(env=Environment.TEST, log_level="WARNING"))
-    factory = sessionmaker(bind=pg_engine)
-
-    def _db():  # type: ignore[no-untyped-def]
-        s = factory()
-        try:
-            yield s
-        finally:
-            s.close()
-
-    app.dependency_overrides[get_db] = _db
+def test_readiness_reports_postgres_storage_ok(pg_engine: Engine) -> None:
+    app = create_app(
+        Settings(
+            env=Environment.TEST,
+            log_level="WARNING",
+            storage_backend=StorageBackendName.POSTGRES,
+        )
+    )
+    app.dependency_overrides[storage_provider] = lambda: lambda: SqlTableStore(pg_engine)
     with TestClient(app) as c:
         r = c.get("/api/v1/health/ready")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok", "data_mode": "DEMO", "checks": {"database": "ok"}}
+    assert r.json() == {
+        "status": "ok",
+        "data_mode": "DEMO",
+        "storage_backend": "postgres",
+        "checks": {"storage": "ok"},
+    }

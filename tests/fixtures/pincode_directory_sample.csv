@@ -1,0 +1,6 @@
+circlename,regionname,divisionname,officename,pincode,officetype,delivery,district,statename,latitude,longitude
+Karnataka Circle,Bangalore HQ Region,Bangalore GPO Division,Bangalore G.P.O.,560001,H.O,Delivery,BENGALURU URBAN,KARNATAKA,12.97,77.59
+Karnataka Circle,Bangalore HQ Region,Bangalore GPO Division,Vidhana Soudha S.O,560001,S.O,Non Delivery,BENGALURU URBAN,KARNATAKA,12.98,77.59
+Delhi Circle,Delhi Region,New Delhi GPO Division,New Delhi G.P.O.,110001,H.O,Delivery,NEW DELHI,DELHI,28.63,77.21
+Maharashtra Circle,Mumbai Region,Mumbai GPO Division,Mumbai G.P.O.,400001,H.O,Delivery,MUMBAI,MAHARASHTRA,18.94,72.83
+Test Circle,Test Region,Test Division,Bad Row,0ABCDE,B.O,Delivery,NOWHERE,NOWHERE,0,0

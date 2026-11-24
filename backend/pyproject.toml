@@ -13,6 +13,8 @@ dependencies = [
   "psycopg[binary]>=3.2",
   "structlog>=24.4",
   "redis>=5.2",
+  "gspread>=6.1",
+  "google-auth>=2.35",
 ]
 
 [dependency-groups]
@@ -28,7 +30,7 @@ package = false
 
 [tool.pytest.ini_options]
 testpaths = ["../tests"]
-pythonpath = ["."]
+pythonpath = [".", "../tests"]
 addopts = "-ra --strict-markers"
 markers = [
   "db: requires a reachable PostgreSQL (PRICESCOPE_DATABASE_URL); skipped otherwise",

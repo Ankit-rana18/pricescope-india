@@ -12,6 +12,13 @@ export function ApiStatus({ readiness }: { readiness: ReadinessResponse | null }
       </Badge>
     );
   }
+  if (readiness.checks.storage === "not_configured") {
+    return (
+      <Badge tone="warning">
+        <CircleAlert aria-hidden /> Storage not configured
+      </Badge>
+    );
+  }
   if (readiness.status !== "ok") {
     return (
       <Badge tone="warning">

@@ -20,10 +20,13 @@ export class ApiError extends Error {
 
 export type DataMode = "DEMO" | "LIVE";
 
+export type CheckStatus = "ok" | "error" | "not_configured";
+
 export interface ReadinessResponse {
   status: "ok" | "error";
   data_mode: DataMode;
-  checks: Record<string, "ok" | "error">;
+  storage_backend: "sheets" | "postgres";
+  checks: Record<string, CheckStatus>;
 }
 
 export async function apiFetch<T>(
@@ -47,18 +50,67 @@ export async function apiFetch<T>(
   return body as T;
 }
 
+export type MarketplaceCode = "AMAZON_IN" | "FLIPKART" | "BLINKIT" | "ZEPTO" | "BIGBASKET";
+export type DirectoryStatus = "VERIFIED" | "NOT_FOUND" | "UNAVAILABLE";
+
+export interface LookupResult {
+  product: {
+    marketplace: MarketplaceCode;
+    marketplace_name: string;
+    external_id: string;
+    id_type: string;
+    canonical_url: string;
+  };
+  location: {
+    pincode: string;
+    postal_region: string;
+    directory_status: DirectoryStatus;
+    district: string | null;
+    state: string | null;
+    post_offices: number;
+    delivery_note: string;
+  };
+  comparison_available: false;
+}
+
+export interface FieldError {
+  field: "url" | "pincode";
+  code: string;
+  message: string;
+}
+
+/** Field-level problems from a 422 `invalid_input` response, if that's what this is. */
+export function fieldErrorsOf(err: unknown): FieldError[] {
+  if (!(err instanceof ApiError) || err.body.code !== "invalid_input") return [];
+  const details = err.body.details as { fields?: FieldError[] } | undefined;
+  return Array.isArray(details?.fields) ? details.fields : [];
+}
+
+export function validateLookup(url: string, pincode: string): Promise<LookupResult> {
+  return apiFetch<LookupResult>("/api/v1/lookups/validate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, pincode }),
+    cache: "no-store",
+  });
+}
+
 /** Server-side readiness lookup; returns null when the API is unreachable. */
 export async function getReadiness(): Promise<ReadinessResponse | null> {
   try {
-    return await apiFetch<ReadinessResponse>("/api/v1/health/ready", {
-      next: { revalidate: 30 },
-      timeoutMs: 3000,
+    const res = await fetch(`${publicEnv.apiUrl}/api/v1/health/ready`, {
+      headers: { Accept: "application/json" },
+      // Never cached: a status badge must not keep saying "online" after the API fails.
+      cache: "no-store",
+      signal: AbortSignal.timeout(3000),
     });
-  } catch (err) {
-    // 503 still carries a readiness body worth showing.
-    if (err instanceof ApiError && err.status === 503) {
-      return { status: "error", data_mode: "DEMO", checks: {} };
-    }
+    // 503 still carries a full readiness body describing what is wrong.
+    if (!res.ok && res.status !== 503) return null;
+    const body = (await res.json()) as Partial<ReadinessResponse>;
+    return body && typeof body.status === "string" && body.checks
+      ? (body as ReadinessResponse)
+      : null;
+  } catch {
     return null;
   }
 }
