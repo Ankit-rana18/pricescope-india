@@ -187,6 +187,11 @@ class ComparisonView(BaseModel):
     results: list[ResultView]
     summary: SummaryView
     reused: bool = False
+    cards_personalized: bool = Field(
+        False, description="Best card offers use only the banks the viewer saved."
+    )
+    # Who ran it (None = anonymous). Used for access checks; never sent to clients.
+    owner_id: str | None = Field(None, exclude=True)
     saving: bool = Field(
         False, description="Results are final but still being saved; poll again for product_slug."
     )

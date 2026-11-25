@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ScanSearch } from "lucide-react";
 
+import { UserMenu } from "@/components/layout/user-menu";
+
 export function SiteHeader() {
   return (
     <header className="bg-background/85 supports-[backdrop-filter]:bg-background/70 sticky top-0 z-40 border-b backdrop-blur">
@@ -16,7 +18,7 @@ export function SiteHeader() {
             PriceScope <span className="text-muted-foreground font-medium">India</span>
           </span>
         </Link>
-        {/* Navigation links are added as their pages ship (no dead links). */}
+        <UserMenu />
       </div>
     </header>
   );

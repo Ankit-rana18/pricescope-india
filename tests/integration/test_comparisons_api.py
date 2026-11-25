@@ -171,8 +171,9 @@ def test_storage_use_per_comparison_is_small(
     sheets.calls.clear()
     refreshed = client.post(f"/api/v1/comparisons/{first['id']}/refresh").json()
     service.wait(refreshed["id"])
-    # Repeat comparison: comparison row, results, price history, location checks.
-    assert sheets.calls["append_rows"] <= 4
+    # Repeat comparison: comparison row, results, price history, location checks,
+    # integration health logs.
+    assert sheets.calls["append_rows"] <= 5
     assert sheets.calls["update_row"] == 1
 
 

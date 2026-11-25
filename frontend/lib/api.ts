@@ -29,16 +29,29 @@ export interface ReadinessResponse {
   checks: Record<string, CheckStatus>;
 }
 
+/** Set by the browser's auth provider; server-side calls stay anonymous. */
+let tokenProvider: (() => Promise<string | null>) | null = null;
+
+export function setAuthTokenProvider(fn: (() => Promise<string | null>) | null): void {
+  tokenProvider = fn;
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit & { timeoutMs?: number } = {},
 ): Promise<T> {
   const { timeoutMs = 8000, ...rest } = init;
+  const token = typeof window !== "undefined" && tokenProvider ? await tokenProvider() : null;
   const res = await fetch(`${publicEnv.apiUrl}${path}`, {
     ...rest,
-    headers: { Accept: "application/json", ...rest.headers },
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...rest.headers,
+    },
     signal: rest.signal ?? AbortSignal.timeout(timeoutMs),
   });
+  if (res.status === 204) return undefined as T;
   const body: unknown = await res.json().catch(() => null);
   if (!res.ok) {
     const err =

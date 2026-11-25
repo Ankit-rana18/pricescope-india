@@ -25,7 +25,8 @@ pack count and variant) with transparent final prices.
 | 5 | Matching engine: barcode check digits, model/brand normalisation + aliases, fuzzy titles, optional AI review | ✅ done |
 | 6 | PIN area from the India Post directory, published fee policies (estimated fees), location checks saved | ✅ done |
 | 7 | Dashboard filters/sort, retry failed marketplaces, refresh, data-source panel, price-history charts, product & category pages, sitemap (demo pages never indexed) | ✅ done |
-| 8–9 | See the implementation plan | pending |
+| 8 | Sign-in (Supabase magic link; labelled dev sign-in locally), private comparisons, history, saved products, price alerts (in-app; email not set up), your cards for personalised card offers, admin dashboard + audit log | ✅ done |
+| 9 | See the implementation plan | pending |
 
 ## Repository layout
 

@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { DemoModeBanner } from "@/components/layout/demo-mode-banner";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { AuthProvider } from "@/lib/auth";
 import { getReadiness } from "@/lib/api";
 
 import "./globals.css";
@@ -32,10 +33,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en-IN" className={inter.variable}>
       <body className="flex min-h-dvh flex-col font-sans">
-        {showDemo && <DemoModeBanner />}
-        <SiteHeader />
-        <main className="flex-1">{children}</main>
-        <SiteFooter readiness={readiness} />
+        <AuthProvider>
+          {showDemo && <DemoModeBanner />}
+          <SiteHeader />
+          <main className="flex-1">{children}</main>
+          <SiteFooter readiness={readiness} />
+        </AuthProvider>
       </body>
     </html>
   );

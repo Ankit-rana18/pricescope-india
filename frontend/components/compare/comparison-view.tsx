@@ -17,6 +17,7 @@ import {
   TrendingDown,
 } from "lucide-react";
 
+import { ProductActions } from "@/components/account/product-actions";
 import { PriceHistoryChart } from "@/components/charts/price-history-chart";
 import {
   applyFilters,
@@ -371,6 +372,7 @@ export function ComparisonView({ id }: { id: string }) {
               Product page
             </Link>
           </div>
+          <ProductActions slug={data.product_slug} pincode={data.pincode} />
           <PriceHistoryChart
             slug={data.product_slug}
             pincode={data.pincode}

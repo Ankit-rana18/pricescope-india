@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink, FlaskConical, LineChart } from "lucide-react";
 
+import { ProductActions } from "@/components/account/product-actions";
 import { PriceHistoryChart } from "@/components/charts/price-history-chart";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -82,6 +83,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             </Badge>
           )}
         </div>
+        <ProductActions slug={p.slug} />
       </header>
 
       <section aria-labelledby="listings-heading" className="flex flex-col gap-3">

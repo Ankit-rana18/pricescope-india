@@ -46,6 +46,8 @@ class User(Timestamps, Base):
     )
     default_pincode: Mapped[str | None] = mapped_column(String(6))
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # e.g. {"card_banks": ["HDFC Bank"], "card_types": ["CREDIT"]}
+    preferences: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default="{}")
 
 
 class SavedProduct(UUIDPk, Timestamps, Base):
@@ -76,6 +78,8 @@ class PriceAlert(UUIDPk, Timestamps, Base):
     target_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     last_triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_triggered_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    last_triggered_marketplace: Mapped[str | None] = mapped_column(String(32))
 
 
 class AuditLog(UUIDPk, Base):

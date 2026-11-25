@@ -31,7 +31,13 @@ from pricescope_integrations.models import (
 from pricescope_integrations.runner import RetryPolicy, call_with_retry
 
 from app.core.errors import AppError, NotFoundError
-from app.models.enums import ComparisonStatus, DataMode, MarketplaceCode, MatchClass
+from app.models.enums import (
+    ComparisonStatus,
+    DataMode,
+    IntegrationStatus,
+    MarketplaceCode,
+    MatchClass,
+)
 from app.schemas.comparison import (
     CandidateView,
     CardOfferView,
@@ -43,6 +49,7 @@ from app.schemas.comparison import (
     ResultView,
     SummaryView,
 )
+from app.services.alerts import AlertService
 from app.services.catalog import CatalogService
 from app.services.comparison.evaluate import evaluate, listing_view, name_of, rank_and_summarize
 from app.services.comparison.executors import FetchExecutor, FetchJob
@@ -110,19 +117,31 @@ class ComparisonService:
         self._lock = threading.RLock()
         self._views: OrderedDict[str, ComparisonView] = OrderedDict()
         self._futures: dict[str, Future[None]] = {}
-        self._reuse: dict[tuple[str, str, str], tuple[str, float]] = {}
+        self._reuse: dict[tuple[str, str, str, str], tuple[str, float]] = {}
         self._marketplace_ids: dict[MarketplaceCode, Any] = {}
         self._pool = ThreadPoolExecutor(max_workers=max_parallel, thread_name_prefix="compare")
         self._catalog = CatalogService(store)
+        self._alerts = AlertService(store)
         self._sources: dict[str, Listing] = {}
 
     # ------------------------------------------------------------------ public API
 
     def start(
-        self, parsed: ParsedProductUrl, pincode: str, *, force: bool = False
+        self,
+        parsed: ParsedProductUrl,
+        pincode: str,
+        *,
+        force: bool = False,
+        user_id: uuid.UUID | None = None,
     ) -> ComparisonView:
         """Start a comparison. ``force`` skips reusing a recent identical one (refresh)."""
-        reuse_key = (parsed.marketplace.value, parsed.external_id.casefold(), pincode)
+        # Per user: a reused comparison must never be someone else's.
+        reuse_key = (
+            parsed.marketplace.value,
+            parsed.external_id.casefold(),
+            pincode,
+            str(user_id or "anonymous"),
+        )
         with self._lock:
             hit = None if force else self._reuse.get(reuse_key)
             if hit and hit[1] > time.monotonic():
@@ -142,6 +161,7 @@ class ComparisonService:
                 "pincode": pincode,
                 "status": ComparisonStatus.RUNNING,
                 "data_mode": self._data_mode,
+                "user_id": user_id,
             },
         )
         comparison_id = str(row["id"])
@@ -154,6 +174,7 @@ class ComparisonService:
             source_url=parsed.canonical_url,
             created_at=row["created_at"],
             source=listing_view(source),
+            owner_id=str(user_id) if user_id else None,
             results=[
                 ResultView(
                     marketplace=MarketplaceCode(m.value),
@@ -195,7 +216,12 @@ class ComparisonService:
                 else r
                 for r in live.results
             ]
-            reuse_key = (source.marketplace.value, source.external_id.casefold(), view.pincode)
+            reuse_key = (
+                source.marketplace.value,
+                source.external_id.casefold(),
+                view.pincode,
+                view.owner_id or "anonymous",
+            )
             self._futures[comparison_id] = self._pool.submit(
                 self._run,
                 comparison_id,
@@ -206,14 +232,16 @@ class ComparisonService:
             )
             return live.model_copy(deep=True)
 
-    def refresh(self, comparison_id: str) -> ComparisonView:
+    def refresh(self, comparison_id: str, user_id: uuid.UUID | None = None) -> ComparisonView:
         """A brand-new comparison of the same product and PIN, ignoring recent results."""
         from app.services.url_parser import parse_product_url
 
         view = self.get(comparison_id)
         if view.status not in FINAL:
             raise ComparisonBusy("This comparison is still running.")
-        return self.start(parse_product_url(view.source_url), view.pincode, force=True)
+        return self.start(
+            parse_product_url(view.source_url), view.pincode, force=True, user_id=user_id
+        )
 
     def _source_for(self, comparison_id: str) -> Listing:
         with self._lock:
@@ -299,7 +327,7 @@ class ComparisonService:
         comparison_id: str,
         source: Listing,
         pincode: str,
-        reuse_key: tuple[str, str, str],
+        reuse_key: tuple[str, str, str, str],
         targets: list[Marketplace] | None = None,
     ) -> None:
         query = ProductQuery(
@@ -507,6 +535,14 @@ class ComparisonService:
             self._replace_results(view.id, result_rows)
         self._store.insert_many("price_history", history_rows)
         self._store.insert_many("location_checks", location_rows)
+        self._store.insert_many(
+            "integration_health_logs",
+            [
+                self._health_row(r, now)
+                for r in view.results
+                if wanted is None or r.marketplace in wanted
+            ],
+        )
         self._store.update(
             "comparisons",
             view.id,
@@ -518,7 +554,40 @@ class ComparisonService:
                 ],
             },
         )
+        cheapest = view.summary.cheapest
+        try:
+            self._alerts.evaluate(
+                linked.variant_id,
+                view.pincode,
+                cheapest.final_price if cheapest else None,
+                cheapest.marketplace.value if cheapest else None,
+            )
+        except Exception:  # alerts must never break saving a comparison
+            log.exception("price_alert_evaluation_failed", comparison_id=view.id)
         return linked.slug
+
+    def _health_row(self, r: ResultView, now: datetime) -> dict[str, Any]:
+        """One integration health record per marketplace check (for the admin dashboard)."""
+        if r.status == "FAILED":
+            status = IntegrationStatus.DOWN
+        elif r.status in ("NOT_CONFIGURED", "UNSUPPORTED"):
+            status = IntegrationStatus(r.status)
+        elif (r.attempts or 0) > 2:
+            status = IntegrationStatus.DEGRADED  # answered, but only after retries
+        else:
+            status = (
+                IntegrationStatus.DEMO
+                if self._data_mode is DataMode.DEMO
+                else IntegrationStatus.LIVE
+            )
+        return {
+            "marketplace_id": self._marketplace_id(r.marketplace),
+            "status": status,
+            "latency_ms": r.latency_ms,
+            "error_code": r.status.lower() if r.status == "FAILED" else None,
+            "message": r.status_reason if r.status == "FAILED" else None,
+            "occurred_at": r.checked_at or now,
+        }
 
     def _replace_results(self, comparison_id: str, rows: list[dict[str, Any]]) -> None:
         """On a retry, update each marketplace's saved row (insert if it was never saved)."""
@@ -614,6 +683,7 @@ class ComparisonService:
             results=ranked,
             summary=summary,
             product_slug=self._slug_for_variant(source_row.get("variant_id")),
+            owner_id=str(cmp["user_id"]) if cmp.get("user_id") else None,
         )
 
     def _slug_for_variant(self, variant_id: Any) -> str | None:

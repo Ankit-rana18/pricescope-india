@@ -10,6 +10,7 @@ from pricescope_integrations.registry import build_adapters
 from pydantic import BaseModel, Field
 
 from app.api.v1.lookup import Directory, InvalidInput, LinkResolver
+from app.core.auth import CurrentUser, OptionalUser
 from app.core.config import Settings, TaskExecutor, get_settings
 from app.core.errors import ErrorResponse, NotFoundError
 from app.models.enums import DataMode, MarketplaceCode
@@ -30,6 +31,7 @@ from app.services.comparison.executors import (
 from app.services.comparison.service import ComparisonService
 from app.services.fee_policies import FeePolicySource, StoreFeePolicies, demo_policies
 from app.services.matching import CachedReviewer, ClaudeMatchReviewer, MatchReviewer
+from app.services.personalize import personalize
 from app.services.pincode import PincodeError, load_directory, validate_pincode
 from app.services.url_parser import UrlParseError, resolve_product_url
 from app.storage.factory import get_store
@@ -104,6 +106,7 @@ def create_comparison(
     service: Service,
     directory: Directory,
     link_resolver: LinkResolver,
+    user: OptionalUser,
 ) -> ComparisonView:
     errors: list[FieldError] = []
     parsed = pincode = None
@@ -117,10 +120,20 @@ def create_comparison(
         errors.append(FieldError(field="pincode", code=exc.code, message=exc.message))
     if errors or parsed is None or pincode is None:
         raise InvalidInput(errors)
-    view = service.start(parsed, pincode)
+    view = service.start(parsed, pincode, user_id=user.id if user else None)
     if view.reused:
         response.status_code = 200
-    return view
+    return _for_viewer(view, user)
+
+
+def _for_viewer(view: ComparisonView, user: CurrentUser | None) -> ComparisonView:
+    """Apply access rules and per-viewer personalisation."""
+    if view.owner_id is not None and (
+        user is None or (str(user.id) != view.owner_id and not user.is_admin)
+    ):
+        # Same answer as a missing comparison: don't reveal that it exists.
+        raise NotFoundError("Comparison not found.")
+    return personalize(view, user.preferences) if user else view
 
 
 @router.get(
@@ -129,8 +142,8 @@ def create_comparison(
     summary="Get a comparison (running or finished)",
     responses={404: {"model": ErrorResponse}},
 )
-def get_comparison(comparison_id: str, service: Service) -> ComparisonView:
-    return service.get(comparison_id)
+def get_comparison(comparison_id: str, service: Service, user: OptionalUser) -> ComparisonView:
+    return _for_viewer(service.get(comparison_id), user)
 
 
 class RetryRequest(BaseModel):
@@ -147,9 +160,13 @@ class RetryRequest(BaseModel):
     responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
 )
 def retry_comparison(
-    comparison_id: str, service: Service, body: RetryRequest | None = None
+    comparison_id: str,
+    service: Service,
+    user: OptionalUser,
+    body: RetryRequest | None = None,
 ) -> ComparisonView:
-    return service.retry(comparison_id, body.marketplaces if body else None)
+    _for_viewer(service.get(comparison_id), user)  # access check first
+    return _for_viewer(service.retry(comparison_id, body.marketplaces if body else None), user)
 
 
 @router.post(
@@ -159,8 +176,9 @@ def retry_comparison(
     summary="Run a fresh comparison of the same product and PIN code",
     responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
 )
-def refresh_comparison(comparison_id: str, service: Service) -> ComparisonView:
-    return service.refresh(comparison_id)
+def refresh_comparison(comparison_id: str, service: Service, user: OptionalUser) -> ComparisonView:
+    _for_viewer(service.get(comparison_id), user)  # access check first
+    return _for_viewer(service.refresh(comparison_id, user.id if user else None), user)
 
 
 def _marketplaces(service: ComparisonService, settings: Settings) -> MarketplacesView:

@@ -83,6 +83,11 @@ class Settings(BaseSettings):
     auth_mode: AuthMode = AuthMode.DEV
     supabase_url: str = ""
     supabase_jwt_audience: str = "authenticated"
+    # Only for older Supabase projects that still sign with a shared HS256 secret;
+    # current projects use asymmetric keys from the JWKS endpoint (no secret needed).
+    supabase_jwt_secret: SecretStr | None = None
+    # Emails that get the admin role when they first sign in (server-side only).
+    admin_emails: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     # Optional AI review of ambiguous matches (Claude API). Off by default; costs tokens.
     llm_review_enabled: bool = False
@@ -94,9 +99,10 @@ class Settings(BaseSettings):
     @classmethod
     def _split_cors(cls, data: object) -> object:
         if isinstance(data, dict):
-            raw = data.get("cors_origins")
-            if isinstance(raw, str):
-                data["cors_origins"] = [o.strip() for o in raw.split(",") if o.strip()]
+            for key in ("cors_origins", "admin_emails"):
+                raw = data.get(key)
+                if isinstance(raw, str):
+                    data[key] = [o.strip() for o in raw.split(",") if o.strip()]
         return data
 
     @model_validator(mode="after")
