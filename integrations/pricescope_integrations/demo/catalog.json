@@ -5,12 +5,24 @@
       "marketplace": "FLIPKART",
       "fee_type": "DELIVERY",
       "amount": "40",
-      "conditions": {"below_order_value": "500"},
+      "conditions": {
+        "below_order_value": "500"
+      },
       "effective_from": "2026-01-01",
       "note": "Fictional demo policy: shows how a published fee policy fills an unknown delivery fee."
     }
   ],
-  "metro_pin_prefixes": ["110", "122", "201", "400", "411", "500", "560", "600", "700"],
+  "metro_pin_prefixes": [
+    "110",
+    "122",
+    "201",
+    "400",
+    "411",
+    "500",
+    "560",
+    "600",
+    "700"
+  ],
   "products": [
     {
       "key": "saltwise-salt-1kg",
@@ -23,12 +35,28 @@
             "brand": "Saltwise",
             "gtin": "2000000000015",
             "offer": {
-              "item_price": "28", "mrp": "30",
-              "delivery_fee": {"status": "KNOWN", "amount": "0", "note": "Free delivery on this demo order"},
-              "handling_fee": {"status": "NOT_APPLICABLE"},
-              "platform_fee": {"status": "NOT_APPLICABLE"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "availability": "IN_STOCK", "location": "national", "eta": "Tomorrow"
+              "item_price": "28",
+              "mrp": "30",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0",
+                "note": "Free delivery on this demo order"
+              },
+              "handling_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "platform_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "availability": "IN_STOCK",
+              "location": "national",
+              "eta": "Tomorrow"
+            },
+            "attributes": {
+              "category": "Grocery & Staples"
             }
           }
         ],
@@ -39,12 +67,27 @@
             "brand": "Saltwise",
             "gtin": "2000000000015",
             "offer": {
-              "item_price": "27", "mrp": "30",
-              "delivery_fee": {"status": "UNKNOWN", "note": "Depends on cart value"},
-              "handling_fee": {"status": "NOT_APPLICABLE"},
-              "platform_fee": {"status": "KNOWN", "amount": "3"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "availability": "IN_STOCK", "location": "unverifiable"
+              "item_price": "27",
+              "mrp": "30",
+              "delivery_fee": {
+                "status": "UNKNOWN",
+                "note": "Depends on cart value"
+              },
+              "handling_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "platform_fee": {
+                "status": "KNOWN",
+                "amount": "3"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "availability": "IN_STOCK",
+              "location": "unverifiable"
+            },
+            "attributes": {
+              "category": "Grocery & Staples"
             }
           }
         ],
@@ -55,12 +98,29 @@
             "brand": "Saltwise",
             "gtin": "2000000000015",
             "offer": {
-              "item_price": "29", "mrp": "30",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "KNOWN", "amount": "4"},
-              "platform_fee": {"status": "KNOWN", "amount": "2"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "availability": "IN_STOCK", "location": "metro", "eta": "12 minutes"
+              "item_price": "29",
+              "mrp": "30",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "KNOWN",
+                "amount": "4"
+              },
+              "platform_fee": {
+                "status": "KNOWN",
+                "amount": "2"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "availability": "IN_STOCK",
+              "location": "metro",
+              "eta": "12 minutes"
+            },
+            "attributes": {
+              "category": "Grocery & Staples"
             }
           }
         ],
@@ -71,12 +131,29 @@
             "brand": "Saltwise",
             "gtin": "2000000000022",
             "offer": {
-              "item_price": "16", "mrp": "17",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "KNOWN", "amount": "3"},
-              "platform_fee": {"status": "KNOWN", "amount": "2"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "availability": "IN_STOCK", "location": "metro", "eta": "10 minutes"
+              "item_price": "16",
+              "mrp": "17",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "KNOWN",
+                "amount": "3"
+              },
+              "platform_fee": {
+                "status": "KNOWN",
+                "amount": "2"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "availability": "IN_STOCK",
+              "location": "metro",
+              "eta": "10 minutes"
+            },
+            "attributes": {
+              "category": "Grocery & Staples"
             }
           }
         ],
@@ -87,13 +164,35 @@
             "brand": "Saltwise",
             "gtin": "2000000000015",
             "offer": {
-              "item_price": "26", "mrp": "30",
-              "delivery_fee": {"status": "KNOWN", "amount": "30", "note": "Below minimum order value"},
-              "handling_fee": {"status": "NOT_APPLICABLE"},
-              "platform_fee": {"status": "NOT_APPLICABLE"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "coupons": [{"description": "SAVE5 on first order", "amount": "5", "eligibility": "UNVERIFIED"}],
-              "availability": "IN_STOCK", "location": "metro", "eta": "Tomorrow 7-9 AM"
+              "item_price": "26",
+              "mrp": "30",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "30",
+                "note": "Below minimum order value"
+              },
+              "handling_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "platform_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "coupons": [
+                {
+                  "description": "SAVE5 on first order",
+                  "amount": "5",
+                  "eligibility": "UNVERIFIED"
+                }
+              ],
+              "availability": "IN_STOCK",
+              "location": "metro",
+              "eta": "Tomorrow 7-9 AM"
+            },
+            "attributes": {
+              "category": "Grocery & Staples"
             }
           }
         ]
@@ -101,7 +200,10 @@
     },
     {
       "key": "golden-meadow-butter-500g",
-      "behaviour": {"ZEPTO": "timeout", "AMAZON_IN": "rate_limited_once"},
+      "behaviour": {
+        "ZEPTO": "timeout",
+        "AMAZON_IN": "rate_limited_once"
+      },
       "listings": {
         "AMAZON_IN": [
           {
@@ -110,12 +212,27 @@
             "brand": "Golden Meadow",
             "gtin": "2000000000039",
             "offer": {
-              "item_price": "275", "mrp": "285",
-              "delivery_fee": {"status": "KNOWN", "amount": "40"},
-              "handling_fee": {"status": "NOT_APPLICABLE"},
-              "platform_fee": {"status": "NOT_APPLICABLE"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "availability": "IN_STOCK", "location": "national", "eta": "In 2 days"
+              "item_price": "275",
+              "mrp": "285",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "40"
+              },
+              "handling_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "platform_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "availability": "IN_STOCK",
+              "location": "national",
+              "eta": "In 2 days"
+            },
+            "attributes": {
+              "category": "Dairy"
             }
           }
         ],
@@ -126,12 +243,27 @@
             "brand": "Golden Meadow",
             "gtin": "2000000000046",
             "offer": {
-              "item_price": "540", "mrp": "570",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "NOT_APPLICABLE"},
-              "platform_fee": {"status": "KNOWN", "amount": "3"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "availability": "IN_STOCK", "location": "unverifiable"
+              "item_price": "540",
+              "mrp": "570",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "platform_fee": {
+                "status": "KNOWN",
+                "amount": "3"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "availability": "IN_STOCK",
+              "location": "unverifiable"
+            },
+            "attributes": {
+              "category": "Dairy"
             }
           }
         ],
@@ -142,12 +274,31 @@
             "brand": "Golden Meadow",
             "gtin": "2000000000039",
             "offer": {
-              "item_price": "268", "mrp": "285",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "KNOWN", "amount": "4"},
-              "platform_fee": {"status": "KNOWN", "amount": "2"},
-              "other_fees": {"status": "KNOWN", "amount": "15", "note": "Small-cart fee"},
-              "availability": "IN_STOCK", "location": "metro", "eta": "11 minutes"
+              "item_price": "268",
+              "mrp": "285",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "KNOWN",
+                "amount": "4"
+              },
+              "platform_fee": {
+                "status": "KNOWN",
+                "amount": "2"
+              },
+              "other_fees": {
+                "status": "KNOWN",
+                "amount": "15",
+                "note": "Small-cart fee"
+              },
+              "availability": "IN_STOCK",
+              "location": "metro",
+              "eta": "11 minutes"
+            },
+            "attributes": {
+              "category": "Dairy"
             }
           }
         ],
@@ -159,12 +310,26 @@
             "brand": "Golden Meadow",
             "gtin": "2000000000039",
             "offer": {
-              "item_price": "262", "mrp": "285",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "NOT_APPLICABLE"},
-              "platform_fee": {"status": "NOT_APPLICABLE"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "availability": "OUT_OF_STOCK", "location": "metro"
+              "item_price": "262",
+              "mrp": "285",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "platform_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "availability": "OUT_OF_STOCK",
+              "location": "metro"
+            },
+            "attributes": {
+              "category": "Dairy"
             }
           }
         ]
@@ -172,7 +337,9 @@
     },
     {
       "key": "nimbus-x2-phone",
-      "behaviour": {"BIGBASKET": "error"},
+      "behaviour": {
+        "BIGBASKET": "error"
+      },
       "listings": {
         "AMAZON_IN": [
           {
@@ -181,19 +348,55 @@
             "brand": "Nimbus",
             "model": "NX2-8128",
             "gtin": "2000000000053",
-            "attributes": {"colour": "Midnight Black"},
+            "attributes": {
+              "colour": "Midnight Black",
+              "category": "Mobiles"
+            },
             "offer": {
-              "item_price": "14999", "mrp": "17999",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "NOT_APPLICABLE"},
-              "platform_fee": {"status": "NOT_APPLICABLE"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
+              "item_price": "14999",
+              "mrp": "17999",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "platform_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
               "card_offers": [
-                {"bank": "Demo Bank A", "card_type": "CREDIT", "kind": "PERCENT", "value": "10", "max_discount": "1500", "min_order_value": "5000"},
-                {"bank": "Demo Bank B", "card_type": "CREDIT", "kind": "FLAT", "value": "2000", "min_order_value": "10000", "emi_only": true, "terms": "On 6-month EMI only"},
-                {"bank": "Demo Bank C", "card_type": "DEBIT", "kind": "FLAT", "value": "750", "min_order_value": "12000"}
+                {
+                  "bank": "Demo Bank A",
+                  "card_type": "CREDIT",
+                  "kind": "PERCENT",
+                  "value": "10",
+                  "max_discount": "1500",
+                  "min_order_value": "5000"
+                },
+                {
+                  "bank": "Demo Bank B",
+                  "card_type": "CREDIT",
+                  "kind": "FLAT",
+                  "value": "2000",
+                  "min_order_value": "10000",
+                  "emi_only": true,
+                  "terms": "On 6-month EMI only"
+                },
+                {
+                  "bank": "Demo Bank C",
+                  "card_type": "DEBIT",
+                  "kind": "FLAT",
+                  "value": "750",
+                  "min_order_value": "12000"
+                }
               ],
-              "availability": "IN_STOCK", "location": "national", "eta": "Tomorrow"
+              "availability": "IN_STOCK",
+              "location": "national",
+              "eta": "Tomorrow"
             }
           }
         ],
@@ -204,19 +407,53 @@
             "brand": "Nimbus",
             "model": "NX2-8128",
             "gtin": "2000000000053",
-            "attributes": {"colour": "Midnight Black"},
+            "attributes": {
+              "colour": "Midnight Black",
+              "category": "Mobiles"
+            },
             "offer": {
-              "item_price": "14499", "mrp": "17999",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "NOT_APPLICABLE"},
-              "platform_fee": {"status": "KNOWN", "amount": "9"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "coupons": [{"description": "Extra ₹500 off (applied at checkout)", "amount": "500", "eligibility": "VERIFIED"}],
-              "card_offers": [
-                {"bank": "Demo Bank A", "card_type": "CREDIT", "kind": "PERCENT", "value": "5", "max_discount": "750"},
-                {"bank": "Demo Bank C", "card_type": "CREDIT", "card_network": "RuPay", "kind": "FLAT", "value": "1250", "min_order_value": "12000"}
+              "item_price": "14499",
+              "mrp": "17999",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "platform_fee": {
+                "status": "KNOWN",
+                "amount": "9"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "coupons": [
+                {
+                  "description": "Extra ₹500 off (applied at checkout)",
+                  "amount": "500",
+                  "eligibility": "VERIFIED"
+                }
               ],
-              "availability": "IN_STOCK", "location": "unverifiable"
+              "card_offers": [
+                {
+                  "bank": "Demo Bank A",
+                  "card_type": "CREDIT",
+                  "kind": "PERCENT",
+                  "value": "5",
+                  "max_discount": "750"
+                },
+                {
+                  "bank": "Demo Bank C",
+                  "card_type": "CREDIT",
+                  "card_network": "RuPay",
+                  "kind": "FLAT",
+                  "value": "1250",
+                  "min_order_value": "12000"
+                }
+              ],
+              "availability": "IN_STOCK",
+              "location": "unverifiable"
             }
           },
           {
@@ -225,14 +462,29 @@
             "brand": "Nimbus",
             "model": "NX2-8128",
             "gtin": "2000000000060",
-            "attributes": {"colour": "Ocean Blue"},
+            "attributes": {
+              "colour": "Ocean Blue",
+              "category": "Mobiles"
+            },
             "offer": {
-              "item_price": "13999", "mrp": "17999",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "NOT_APPLICABLE"},
-              "platform_fee": {"status": "KNOWN", "amount": "9"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "availability": "IN_STOCK", "location": "unverifiable"
+              "item_price": "13999",
+              "mrp": "17999",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "platform_fee": {
+                "status": "KNOWN",
+                "amount": "9"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "availability": "IN_STOCK",
+              "location": "unverifiable"
             }
           }
         ],
@@ -252,15 +504,37 @@
             "brand": "SparkleWash",
             "gtin": "2000000000077",
             "offer": {
-              "item_price": "389", "mrp": "430",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "NOT_APPLICABLE"},
-              "platform_fee": {"status": "NOT_APPLICABLE"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
+              "item_price": "389",
+              "mrp": "430",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "platform_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
               "card_offers": [
-                {"bank": "Demo Bank B", "card_type": "CREDIT", "kind": "PERCENT", "value": "10", "max_discount": "100", "min_order_value": "500"}
+                {
+                  "bank": "Demo Bank B",
+                  "card_type": "CREDIT",
+                  "kind": "PERCENT",
+                  "value": "10",
+                  "max_discount": "100",
+                  "min_order_value": "500"
+                }
               ],
-              "availability": "IN_STOCK", "location": "national", "eta": "In 2 days"
+              "availability": "IN_STOCK",
+              "location": "national",
+              "eta": "In 2 days"
+            },
+            "attributes": {
+              "category": "Home Care"
             }
           }
         ],
@@ -270,12 +544,27 @@
             "title": "SparkleWash Matic Detergent Powder 2 kg",
             "brand": "SparkleWash",
             "offer": {
-              "item_price": "379", "mrp": "430",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "NOT_APPLICABLE"},
-              "platform_fee": {"status": "KNOWN", "amount": "3"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "availability": "IN_STOCK", "location": "unverifiable"
+              "item_price": "379",
+              "mrp": "430",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "platform_fee": {
+                "status": "KNOWN",
+                "amount": "3"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "availability": "IN_STOCK",
+              "location": "unverifiable"
+            },
+            "attributes": {
+              "category": "Home Care"
             }
           }
         ],
@@ -286,12 +575,28 @@
             "brand": "SparkleWash",
             "gtin": "2000000000077",
             "offer": {
-              "item_price": "395", "mrp": "430",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "KNOWN", "amount": "4"},
-              "platform_fee": {"status": "KNOWN", "amount": "2"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "availability": "IN_STOCK", "location": "precise"
+              "item_price": "395",
+              "mrp": "430",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "KNOWN",
+                "amount": "4"
+              },
+              "platform_fee": {
+                "status": "KNOWN",
+                "amount": "2"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "availability": "IN_STOCK",
+              "location": "precise"
+            },
+            "attributes": {
+              "category": "Home Care"
             }
           }
         ],
@@ -302,12 +607,29 @@
             "brand": "SparkleWash",
             "gtin": "2000000000077",
             "offer": {
-              "item_price": "384", "mrp": "430",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "KNOWN", "amount": "3"},
-              "platform_fee": {"status": "KNOWN", "amount": "2"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
-              "availability": "IN_STOCK", "location": "metro", "eta": "9 minutes"
+              "item_price": "384",
+              "mrp": "430",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "KNOWN",
+                "amount": "3"
+              },
+              "platform_fee": {
+                "status": "KNOWN",
+                "amount": "2"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
+              "availability": "IN_STOCK",
+              "location": "metro",
+              "eta": "9 minutes"
+            },
+            "attributes": {
+              "category": "Home Care"
             }
           }
         ],
@@ -318,15 +640,36 @@
             "brand": "SparkleWash",
             "gtin": "2000000000077",
             "offer": {
-              "item_price": "372", "mrp": "430",
-              "delivery_fee": {"status": "KNOWN", "amount": "0"},
-              "handling_fee": {"status": "NOT_APPLICABLE"},
-              "platform_fee": {"status": "NOT_APPLICABLE"},
-              "other_fees": {"status": "NOT_APPLICABLE"},
+              "item_price": "372",
+              "mrp": "430",
+              "delivery_fee": {
+                "status": "KNOWN",
+                "amount": "0"
+              },
+              "handling_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "platform_fee": {
+                "status": "NOT_APPLICABLE"
+              },
+              "other_fees": {
+                "status": "NOT_APPLICABLE"
+              },
               "card_offers": [
-                {"bank": "Demo Bank C", "card_type": "CREDIT", "kind": "FLAT", "value": "50", "min_order_value": "1000"}
+                {
+                  "bank": "Demo Bank C",
+                  "card_type": "CREDIT",
+                  "kind": "FLAT",
+                  "value": "50",
+                  "min_order_value": "1000"
+                }
               ],
-              "availability": "IN_STOCK", "location": "metro", "eta": "Tomorrow 7-9 AM"
+              "availability": "IN_STOCK",
+              "location": "metro",
+              "eta": "Tomorrow 7-9 AM"
+            },
+            "attributes": {
+              "category": "Home Care"
             }
           }
         ]

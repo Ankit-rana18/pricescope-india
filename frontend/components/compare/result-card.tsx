@@ -5,11 +5,13 @@ import {
   FlaskConical,
   MapPin,
   PackageX,
+  RotateCcw,
   Trophy,
 } from "lucide-react";
 
 import { LOCATION_TEXT, MatchBadge, StatusBadge } from "@/components/compare/badges";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatINR, type CardOfferView, type ChargeView, type ResultView } from "@/lib/comparison";
 import { cn } from "@/lib/utils";
@@ -35,7 +37,15 @@ function cardLabel(c: CardOfferView): string {
   return `${what}${cap}${min}`;
 }
 
-export function ResultCard({ result, demo }: { result: ResultView; demo: boolean }) {
+export function ResultCard({
+  result,
+  demo,
+  onRetry,
+}: {
+  result: ResultView;
+  demo: boolean;
+  onRetry?: () => void;
+}) {
   const r = result;
   const p = r.price;
   return (
@@ -67,6 +77,11 @@ export function ResultCard({ result, demo }: { result: ResultView; demo: boolean
             {r.listing && <p className="text-muted-foreground text-sm">{r.listing.title}</p>}
             {r.status !== "OK" && r.status_reason && (
               <p className="text-muted-foreground text-sm">{r.status_reason}</p>
+            )}
+            {onRetry && (
+              <Button variant="outline" size="sm" className="mt-1 w-fit" onClick={onRetry}>
+                <RotateCcw aria-hidden /> Retry {r.marketplace_name}
+              </Button>
             )}
           </div>
           {p && p.final_price !== null && (

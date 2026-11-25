@@ -7,6 +7,7 @@ import structlog
 from fastapi import APIRouter, Depends, Response
 from pricescope_integrations.demo.adapter import demo_fee_policies, demo_source_links
 from pricescope_integrations.registry import build_adapters
+from pydantic import BaseModel, Field
 
 from app.api.v1.lookup import Directory, InvalidInput, LinkResolver
 from app.core.config import Settings, TaskExecutor, get_settings
@@ -130,6 +131,36 @@ def create_comparison(
 )
 def get_comparison(comparison_id: str, service: Service) -> ComparisonView:
     return service.get(comparison_id)
+
+
+class RetryRequest(BaseModel):
+    marketplaces: list[MarketplaceCode] | None = Field(
+        None, description="Marketplaces to re-check; default: every one that failed."
+    )
+
+
+@router.post(
+    "/comparisons/{comparison_id}/retry",
+    response_model=ComparisonView,
+    status_code=202,
+    summary="Re-check failed marketplaces of a finished comparison",
+    responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+def retry_comparison(
+    comparison_id: str, service: Service, body: RetryRequest | None = None
+) -> ComparisonView:
+    return service.retry(comparison_id, body.marketplaces if body else None)
+
+
+@router.post(
+    "/comparisons/{comparison_id}/refresh",
+    response_model=ComparisonView,
+    status_code=202,
+    summary="Run a fresh comparison of the same product and PIN code",
+    responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+def refresh_comparison(comparison_id: str, service: Service) -> ComparisonView:
+    return service.refresh(comparison_id)
 
 
 def _marketplaces(service: ComparisonService, settings: Settings) -> MarketplacesView:

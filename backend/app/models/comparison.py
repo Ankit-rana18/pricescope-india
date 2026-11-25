@@ -163,6 +163,8 @@ class PriceHistory(UUIDPk, Base):
     mrp: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     final_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     final_price_complete: Mapped[bool] = mapped_column(Boolean, server_default="false")
+    # Includes a fee estimated from a published policy (not confirmed for the cart).
+    final_price_estimated: Mapped[bool] = mapped_column(Boolean, server_default="false")
     data_mode: Mapped[DataMode] = mapped_column(str_enum(DataMode, "data_mode"))
     observed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

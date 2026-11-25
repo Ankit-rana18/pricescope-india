@@ -37,6 +37,14 @@
   --warning-soft: oklch(0.97 0.05 85);
   --info-soft: oklch(0.96 0.02 250);
 
+  /* Chart series: one fixed slot per marketplace (validated categorical palette). */
+  --series-amazon: #2a78d6;
+  --series-flipkart: #eb6834;
+  --series-blinkit: #1baf7a;
+  --series-zepto: #eda100;
+  --series-bigbasket: #e87ba4;
+  --chart-grid: oklch(0.92 0.005 264);
+
   --shadow-card: 0 1px 2px oklch(0.2 0.02 264 / 0.04), 0 4px 16px -4px oklch(0.2 0.02 264 / 0.06);
 }
 
@@ -64,6 +72,12 @@
   --warning: oklch(0.75 0.14 75);
   --warning-soft: oklch(0.28 0.05 75);
   --info-soft: oklch(0.26 0.03 250);
+  --series-amazon: #3987e5;
+  --series-flipkart: #d95926;
+  --series-blinkit: #199e70;
+  --series-zepto: #c98500;
+  --series-bigbasket: #d55181;
+  --chart-grid: oklch(0.3 0.012 264);
 }
 
 @theme inline {

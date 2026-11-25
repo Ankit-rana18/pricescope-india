@@ -154,6 +154,8 @@ export interface ComparisonView {
   };
   reused: boolean;
   storage_note: string | null;
+  saving?: boolean;
+  product_slug: string | null;
 }
 
 export interface DemoProduct {
@@ -179,6 +181,26 @@ export function getComparison(id: string, signal?: AbortSignal): Promise<Compari
   return apiFetch<ComparisonView>(`/api/v1/comparisons/${encodeURIComponent(id)}`, {
     cache: "no-store",
     signal,
+  });
+}
+
+export function retryComparison(
+  id: string,
+  marketplaces?: MarketplaceCode[],
+): Promise<ComparisonView> {
+  return apiFetch<ComparisonView>(`/api/v1/comparisons/${encodeURIComponent(id)}/retry`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(marketplaces ? { marketplaces } : {}),
+    cache: "no-store",
+  });
+}
+
+export function refreshComparison(id: string): Promise<ComparisonView> {
+  return apiFetch<ComparisonView>(`/api/v1/comparisons/${encodeURIComponent(id)}/refresh`, {
+    method: "POST",
+    cache: "no-store",
+    timeoutMs: 20000,
   });
 }
 

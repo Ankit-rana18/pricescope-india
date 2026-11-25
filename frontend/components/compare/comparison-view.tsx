@@ -1,27 +1,42 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowLeft,
   CreditCard,
   FlaskConical,
   Info,
+  LineChart,
   Loader2,
   MapPin,
+  RefreshCw,
+  RotateCcw,
   TrendingDown,
 } from "lucide-react";
 
+import { PriceHistoryChart } from "@/components/charts/price-history-chart";
+import {
+  applyFilters,
+  DashboardControls,
+  DEFAULT_FILTERS,
+  type Filters,
+} from "@/components/compare/dashboard-controls";
 import { ResultCard } from "@/components/compare/result-card";
+import { StatusPanel } from "@/components/compare/status-panel";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ApiError } from "@/lib/api";
+import { ApiError, type MarketplaceCode } from "@/lib/api";
 import {
   FINAL_STATUSES,
   formatINR,
   getComparison,
+  refreshComparison,
+  retryComparison,
   type ComparisonView as Comparison,
 } from "@/lib/comparison";
 
@@ -29,6 +44,13 @@ function usePolledComparison(id: string) {
   const [data, setData] = useState<Comparison | null>(null);
   const [error, setError] = useState<string | null>(null);
   const delay = useRef(700);
+  const [generation, setGeneration] = useState(0);
+
+  const restart = useCallback((seed?: Comparison) => {
+    if (seed) setData(seed);
+    delay.current = 700;
+    setGeneration((g) => g + 1);
+  }, []);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -41,7 +63,8 @@ function usePolledComparison(id: string) {
         if (cancelled) return;
         setData(next);
         setError(null);
-        if (!FINAL_STATUSES.includes(next.status)) {
+        // Keep polling while running, and briefly while results are being saved.
+        if (!FINAL_STATUSES.includes(next.status) || next.saving) {
           delay.current = Math.min(delay.current * 1.4, 3000);
           timer = setTimeout(tick, delay.current);
         }
@@ -61,9 +84,9 @@ function usePolledComparison(id: string) {
       controller.abort();
       if (timer) clearTimeout(timer);
     };
-  }, [id]);
+  }, [id, generation]);
 
-  return { data, error };
+  return { data, error, restart };
 }
 
 function SourceChips({ c }: { c: Comparison }) {
@@ -178,7 +201,38 @@ function Summary({ c }: { c: Comparison }) {
 }
 
 export function ComparisonView({ id }: { id: string }) {
-  const { data, error } = usePolledComparison(id);
+  const router = useRouter();
+  const { data, error, restart } = usePolledComparison(id);
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const visible = useMemo(() => (data ? applyFilters(data.results, filters) : []), [data, filters]);
+
+  async function retry(marketplaces?: MarketplaceCode[]) {
+    setBusy("retry");
+    setActionError(null);
+    try {
+      restart(await retryComparison(id, marketplaces));
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.body.message : "Couldn't start the retry.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function refresh() {
+    setBusy("refresh");
+    setActionError(null);
+    try {
+      const next = await refreshComparison(id);
+      router.push(`/compare/${next.id}`);
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.body.message : "Couldn't refresh the comparison.",
+      );
+      setBusy(null);
+    }
+  }
 
   if (!data) {
     return error ? (
@@ -247,18 +301,85 @@ export function ComparisonView({ id }: { id: string }) {
           </>
         )}
         {data.reused && <span>· Results from the last few minutes</span>}
+        {done && (
+          <span className="ml-auto flex flex-wrap gap-2">
+            {data.summary.marketplaces_failed > 0 && (
+              <Button variant="outline" size="sm" disabled={busy !== null} onClick={() => retry()}>
+                <RotateCcw aria-hidden /> Retry failed ({data.summary.marketplaces_failed})
+              </Button>
+            )}
+            <Button variant="outline" size="sm" disabled={busy !== null} onClick={refresh}>
+              <RefreshCw className={busy === "refresh" ? "animate-spin" : undefined} aria-hidden />
+              Refresh prices
+            </Button>
+          </span>
+        )}
       </div>
+      {actionError && (
+        <p role="alert" className="text-destructive text-sm">
+          {actionError}
+        </p>
+      )}
 
       {error && <p className="text-warning text-sm">{error}</p>}
       {data.storage_note && <p className="text-warning text-sm">{data.storage_note}</p>}
 
       <Summary c={data} />
 
+      <DashboardControls results={data.results} filters={filters} onChange={setFilters} />
+
       <section aria-label="Results by marketplace" className="flex flex-col gap-4">
-        {data.results.map((r) => (
-          <ResultCard key={r.marketplace} result={r} demo={demo} />
+        {visible.map((r) => (
+          <ResultCard
+            key={r.marketplace}
+            result={r}
+            demo={demo}
+            onRetry={
+              done && r.status === "FAILED" && busy === null
+                ? () => retry([r.marketplace])
+                : undefined
+            }
+          />
         ))}
+        {visible.length === 0 && (
+          <p className="text-muted-foreground rounded-xl border border-dashed p-6 text-center text-sm">
+            No results match these filters.{" "}
+            <button
+              type="button"
+              className="text-primary underline"
+              onClick={() => setFilters(DEFAULT_FILTERS)}
+            >
+              Reset filters
+            </button>
+          </p>
+        )}
       </section>
+
+      {data.product_slug && done && (
+        <section
+          aria-labelledby="history-heading"
+          className="bg-card flex flex-col gap-3 rounded-2xl border p-5"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="history-heading" className="inline-flex items-center gap-2 font-semibold">
+              <LineChart className="size-4" aria-hidden /> Price history at {data.pincode}
+            </h2>
+            <Link
+              href={`/products/${data.product_slug}`}
+              className="text-primary text-sm font-medium hover:underline"
+            >
+              Product page
+            </Link>
+          </div>
+          <PriceHistoryChart
+            slug={data.product_slug}
+            pincode={data.pincode}
+            refreshKey={data.completed_at}
+          />
+        </section>
+      )}
+
+      <StatusPanel results={data.results} />
 
       <p className="text-muted-foreground text-xs">
         Ranked: exact matches that are in stock with a complete final price, cheapest first. Fully

@@ -29,9 +29,7 @@ def _replace(values: tuple[str, ...]) -> None:
     for col in COLUMNS:
         name = f"ck_comparison_results_{col}_status"
         op.drop_constraint(op.f(name), "comparison_results", type_="check")
-        op.create_check_constraint(
-            op.f(name), "comparison_results", f"{col}_status IN ({allowed})"
-        )
+        op.create_check_constraint(op.f(name), "comparison_results", f"{col}_status IN ({allowed})")
 
 
 def upgrade() -> None:

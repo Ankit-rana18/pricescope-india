@@ -187,6 +187,12 @@ class ComparisonView(BaseModel):
     results: list[ResultView]
     summary: SummaryView
     reused: bool = False
+    saving: bool = Field(
+        False, description="Results are final but still being saved; poll again for product_slug."
+    )
+    product_slug: str | None = Field(
+        None, description="Canonical product page (/products/{slug}) once results are saved."
+    )
     storage_note: str | None = None
 
 

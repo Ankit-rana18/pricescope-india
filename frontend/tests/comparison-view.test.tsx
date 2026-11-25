@@ -2,6 +2,8 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ComparisonView } from "@/components/compare/comparison-view";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 import {
   formatINR,
   type ChargeStatus,
@@ -89,6 +91,7 @@ const COMPARISON: Comparison = {
   reused: false,
   storage_note: null,
   location: null,
+  product_slug: null,
   summary: {
     cheapest: {
       marketplace: "AMAZON_IN",
@@ -226,7 +229,10 @@ describe("ComparisonView", () => {
   it("shows failed marketplaces with the reason", async () => {
     mockComparison(COMPARISON);
     render(<ComparisonView id="c1" />);
-    expect(await screen.findByText("Check failed")).toBeInTheDocument();
+    const zepto = (await screen.findByRole("heading", { name: "Zepto" })).closest(
+      "[data-slot=card]",
+    ) as HTMLElement;
+    expect(within(zepto).getByText("Check failed")).toBeInTheDocument();
     expect(screen.getByText("Took too long to respond")).toBeInTheDocument();
   });
 
@@ -239,13 +245,18 @@ describe("ComparisonView", () => {
         r.marketplace === "ZEPTO" ? { ...r, status: "PENDING" as const } : r,
       ),
     };
-    const spy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify(running)))
-      .mockResolvedValue(new Response(JSON.stringify(COMPARISON)));
+    let polls = 0;
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (!String(input).includes("/comparisons/")) {
+        return new Response(JSON.stringify({ data_mode: "DEMO", marketplaces: [] }));
+      }
+      polls += 1;
+      return new Response(JSON.stringify(polls === 1 ? running : COMPARISON));
+    });
     render(<ComparisonView id="c1" />);
     expect(await screen.findByText(/Checking marketplaces… 4 of 5 answered/)).toBeInTheDocument();
-    await waitFor(() => expect(spy).toHaveBeenCalledTimes(2), { timeout: 3000 });
+    await waitFor(() => expect(polls).toBeGreaterThanOrEqual(2), { timeout: 3000 });
+    expect(spy).toHaveBeenCalled();
     expect(await screen.findByText(/1 marketplace couldn't be checked/)).toBeInTheDocument();
   });
 

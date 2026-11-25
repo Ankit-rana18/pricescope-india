@@ -167,11 +167,12 @@ def test_saved_comparison_rebuilds_identically_after_restart(
 def test_storage_use_per_comparison_is_small(
     sheets: FakeSheetClient, client: TestClient, service: ComparisonService
 ) -> None:
-    run(client, service, SALT)  # warm marketplace ids
+    first = run(client, service, BUTTER)  # creates listings + the canonical product once
     sheets.calls.clear()
-    run(client, service, BUTTER)
-    # listings, results, price history, location checks (+ comparison row at start)
-    assert sheets.calls["append_rows"] <= 5
+    refreshed = client.post(f"/api/v1/comparisons/{first['id']}/refresh").json()
+    service.wait(refreshed["id"])
+    # Repeat comparison: comparison row, results, price history, location checks.
+    assert sheets.calls["append_rows"] <= 4
     assert sheets.calls["update_row"] == 1
 
 
@@ -377,3 +378,18 @@ def test_estimated_flag_survives_reload(sheets: FakeSheetClient) -> None:
     with client_for(fresh) as c2:
         stored = c2.get(f"/api/v1/comparisons/{live['id']}").json()
     assert stored == live
+
+
+def test_price_history_records_estimated_prices(sheets: FakeSheetClient) -> None:
+    service = make_phase6_service(sheets)
+    with client_for(service) as c:
+        run(c, service, SALT)
+    flags = dict(
+        zip(
+            sheets.column_values("price_history", "final_price"),
+            sheets.column_values("price_history", "final_price_estimated"),
+            strict=True,
+        )
+    )
+    assert flags["70.00"] == "TRUE"  # Flipkart: ₹40 delivery estimated from a policy
+    assert flags["28.00"] == "FALSE"  # Amazon: every fee reported

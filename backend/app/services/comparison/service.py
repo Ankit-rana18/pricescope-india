@@ -31,7 +31,7 @@ from pricescope_integrations.models import (
 from pricescope_integrations.runner import RetryPolicy, call_with_retry
 
 from app.core.errors import AppError, NotFoundError
-from app.models.enums import ComparisonStatus, DataMode, MarketplaceCode
+from app.models.enums import ComparisonStatus, DataMode, MarketplaceCode, MatchClass
 from app.schemas.comparison import (
     CandidateView,
     CardOfferView,
@@ -43,6 +43,7 @@ from app.schemas.comparison import (
     ResultView,
     SummaryView,
 )
+from app.services.catalog import CatalogService
 from app.services.comparison.evaluate import evaluate, listing_view, name_of, rank_and_summarize
 from app.services.comparison.executors import FetchExecutor, FetchJob
 from app.services.fee_policies import FeePolicySource
@@ -66,6 +67,16 @@ class SourceNotFound(AppError):
 class SourceUnavailable(AppError):
     status_code = HTTPStatus.SERVICE_UNAVAILABLE
     code = "source_unavailable"
+
+
+class ComparisonBusy(AppError):
+    status_code = HTTPStatus.CONFLICT
+    code = "comparison_running"
+
+
+class NothingToRetry(AppError):
+    status_code = HTTPStatus.CONFLICT
+    code = "nothing_to_retry"
 
 
 class ComparisonService:
@@ -102,13 +113,18 @@ class ComparisonService:
         self._reuse: dict[tuple[str, str, str], tuple[str, float]] = {}
         self._marketplace_ids: dict[MarketplaceCode, Any] = {}
         self._pool = ThreadPoolExecutor(max_workers=max_parallel, thread_name_prefix="compare")
+        self._catalog = CatalogService(store)
+        self._sources: dict[str, Listing] = {}
 
     # ------------------------------------------------------------------ public API
 
-    def start(self, parsed: ParsedProductUrl, pincode: str) -> ComparisonView:
+    def start(
+        self, parsed: ParsedProductUrl, pincode: str, *, force: bool = False
+    ) -> ComparisonView:
+        """Start a comparison. ``force`` skips reusing a recent identical one (refresh)."""
         reuse_key = (parsed.marketplace.value, parsed.external_id.casefold(), pincode)
         with self._lock:
-            hit = self._reuse.get(reuse_key)
+            hit = None if force else self._reuse.get(reuse_key)
             if hit and hit[1] > time.monotonic():
                 try:
                     view = self.get(hit[0])
@@ -150,10 +166,66 @@ class ComparisonService:
         )
         with self._lock:
             self._remember(view)
+            self._sources[comparison_id] = source
             self._futures[comparison_id] = self._pool.submit(
                 self._run, comparison_id, source, pincode, reuse_key
             )
         return view.model_copy(deep=True)
+
+    def retry(
+        self, comparison_id: str, marketplaces: list[MarketplaceCode] | None = None
+    ) -> ComparisonView:
+        """Re-check marketplaces of a finished comparison (default: the ones that failed)."""
+        view = self.get(comparison_id)
+        if view.status not in FINAL:
+            raise ComparisonBusy("This comparison is still running.")
+        targets = marketplaces or [r.marketplace for r in view.results if r.status == "FAILED"]
+        if not targets:
+            raise NothingToRetry("Every marketplace was checked successfully; nothing to retry.")
+        source = self._source_for(comparison_id)
+        with self._lock:
+            live = self._views[comparison_id]
+            live.status = ComparisonStatus.RUNNING
+            live.completed_at = None
+            live.results = [
+                ResultView(
+                    marketplace=r.marketplace, marketplace_name=r.marketplace_name, status="PENDING"
+                )
+                if r.marketplace in targets
+                else r
+                for r in live.results
+            ]
+            reuse_key = (source.marketplace.value, source.external_id.casefold(), view.pincode)
+            self._futures[comparison_id] = self._pool.submit(
+                self._run,
+                comparison_id,
+                source,
+                view.pincode,
+                reuse_key,
+                [Marketplace(m.value) for m in targets],
+            )
+            return live.model_copy(deep=True)
+
+    def refresh(self, comparison_id: str) -> ComparisonView:
+        """A brand-new comparison of the same product and PIN, ignoring recent results."""
+        from app.services.url_parser import parse_product_url
+
+        view = self.get(comparison_id)
+        if view.status not in FINAL:
+            raise ComparisonBusy("This comparison is still running.")
+        return self.start(parse_product_url(view.source_url), view.pincode, force=True)
+
+    def _source_for(self, comparison_id: str) -> Listing:
+        with self._lock:
+            if comparison_id in self._sources:
+                return self._sources[comparison_id]
+        cmp = self._store.get("comparisons", comparison_id)
+        row = self._store.get("marketplace_products", cmp["source_marketplace_product_id"])
+        codes = {v: k for k, v in self._marketplace_id_map().items()}
+        source = self._listing_from_row(row, codes[row["marketplace_id"]])
+        with self._lock:
+            self._sources[comparison_id] = source
+        return source
 
     def get(self, comparison_id: str) -> ComparisonView:
         with self._lock:
@@ -223,7 +295,12 @@ class ComparisonService:
             ) from None
 
     def _run(
-        self, comparison_id: str, source: Listing, pincode: str, reuse_key: tuple[str, str, str]
+        self,
+        comparison_id: str,
+        source: Listing,
+        pincode: str,
+        reuse_key: tuple[str, str, str],
+        targets: list[Marketplace] | None = None,
     ) -> None:
         query = ProductQuery(
             title=source.title,
@@ -232,7 +309,7 @@ class ComparisonService:
             gtin=source.gtin,
             attributes=source.attributes,
         )
-        jobs = [FetchJob(m, query, pincode, source) for m in Marketplace]
+        jobs = [FetchJob(m, query, pincode, source) for m in (targets or list(Marketplace))]
         budget = ReviewBudget(self._reviews_per_comparison)
         try:
             for fetch in self._executor.run(jobs):
@@ -261,27 +338,32 @@ class ComparisonService:
                     r.status_reason = "No result was received"
             view.results, view.summary = rank_and_summarize(view.results)
             failed = sum(1 for r in view.results if r.status == "FAILED")
-            view.status = (
+            final_status = (
                 ComparisonStatus.FAILED
                 if failed == len(view.results)
                 else ComparisonStatus.PARTIAL
                 if failed
                 else ComparisonStatus.COMPLETE
             )
+            # Results are final now; saving (seconds on Google Sheets) happens after, with
+            # `saving` set so clients keep polling for the product link.
+            view.status = final_status
             view.completed_at = datetime.now(UTC)
+            view.saving = True
             snapshot = view.model_copy(deep=True)
 
+        slug: str | None = None
+        note: str | None = None
         try:
-            self._persist(snapshot, source)
+            slug = self._persist(snapshot, source, targets)
         except Exception:
             log.exception("comparison_persist_failed", comparison_id=comparison_id)
-            with self._lock:
-                self._views[
-                    comparison_id
-                ].storage_note = (
-                    "These results couldn't be saved, so they'll be gone after a restart."
-                )
+            note = "These results couldn't be saved, so they'll be gone after a restart."
         with self._lock:
+            view = self._views[comparison_id]
+            view.saving = False
+            view.product_slug = slug or view.product_slug
+            view.storage_note = note
             self._reuse[reuse_key] = (comparison_id, time.monotonic() + self._reuse_seconds)
             self._futures.pop(comparison_id, None)
 
@@ -303,7 +385,10 @@ class ComparisonService:
             }
         return self._marketplace_ids[code]
 
-    def _listing_ids(self, listings: list[Listing]) -> dict[tuple[str, str], Any]:
+    def _listing_ids(
+        self, listings: list[Listing], variant_for: dict[tuple[str, str], Any] | None = None
+    ) -> dict[tuple[str, str], Any]:
+        variant_for = variant_for or {}
         ids: dict[tuple[str, str], Any] = {}
         new_rows = []
         for lst in listings:
@@ -316,6 +401,10 @@ class ComparisonService:
             )
             if found:
                 ids[key] = found[0]["id"]
+                if found[0].get("variant_id") is None and key in variant_for:
+                    self._store.update(
+                        "marketplace_products", found[0]["id"], {"variant_id": variant_for[key]}
+                    )
                 continue
             row_id = uuid.uuid4()
             ids[key] = row_id
@@ -323,6 +412,7 @@ class ComparisonService:
                 {
                     "id": row_id,
                     "marketplace_id": mid,
+                    "variant_id": variant_for.get(key),
                     "external_id": lst.external_id,
                     "url": lst.url,
                     "title_raw": lst.title,
@@ -340,7 +430,10 @@ class ComparisonService:
         self._store.insert_many("marketplace_products", new_rows)
         return ids
 
-    def _persist(self, view: ComparisonView, source: Listing) -> None:
+    def _persist(
+        self, view: ComparisonView, source: Listing, targets: list[Marketplace] | None = None
+    ) -> str | None:
+        """Save results (all, or only ``targets`` on a retry). Returns the product slug."""
         data_source = DataSource(self._data_mode.value)
         listings = [source] + [
             Listing(
@@ -357,10 +450,25 @@ class ComparisonService:
             for r in view.results
             if r.listing is not None
         ]
-        ids = self._listing_ids(listings)
+        exact_keys = {
+            (r.listing.marketplace.value, r.listing.external_id)
+            for r in view.results
+            if r.listing is not None and r.match_class is MatchClass.EXACT
+        }
+        exact = [
+            lst for lst in listings[1:] if (lst.marketplace.value, lst.external_id) in exact_keys
+        ]
+        linked = self._catalog.link(source, exact)
+        variant_for = {
+            (lst.marketplace.value, lst.external_id): linked.variant_id for lst in [source, *exact]
+        }
+        ids = self._listing_ids(listings, variant_for)
         now = datetime.now(UTC)
         result_rows, history_rows, location_rows = [], [], []
+        wanted = {MarketplaceCode(m.value) for m in targets} if targets else None
         for r in view.results:
+            if wanted is not None and r.marketplace not in wanted:
+                continue
             listing_id = (
                 ids.get((r.listing.marketplace.value, r.listing.external_id)) if r.listing else None
             )
@@ -388,11 +496,15 @@ class ComparisonService:
                         "mrp": r.price.mrp,
                         "final_price": r.price.final_price,
                         "final_price_complete": r.price.final_price_complete,
+                        "final_price_estimated": r.price.final_price_estimated,
                         "data_mode": self._data_mode,
                         "observed_at": r.checked_at or now,
                     }
                 )
-        self._store.insert_many("comparison_results", result_rows)
+        if wanted is None:
+            self._store.insert_many("comparison_results", result_rows)
+        else:
+            self._replace_results(view.id, result_rows)
         self._store.insert_many("price_history", history_rows)
         self._store.insert_many("location_checks", location_rows)
         self._store.update(
@@ -406,6 +518,23 @@ class ComparisonService:
                 ],
             },
         )
+        return linked.slug
+
+    def _replace_results(self, comparison_id: str, rows: list[dict[str, Any]]) -> None:
+        """On a retry, update each marketplace's saved row (insert if it was never saved)."""
+        existing = {
+            r["marketplace_id"]: r["id"]
+            for r in self._store.find("comparison_results", {"comparison_id": comparison_id})
+        }
+        new_rows = []
+        for row in rows:
+            row_id = existing.get(row["marketplace_id"])
+            if row_id is None:
+                new_rows.append(row)
+            else:
+                changes = {k: v for k, v in row.items() if k != "comparison_id"}
+                self._store.update("comparison_results", row_id, changes)
+        self._store.insert_many("comparison_results", new_rows)
 
     def _result_row(
         self, comparison_id: str, r: ResultView, listing_id: Any, now: datetime
@@ -484,7 +613,17 @@ class ComparisonService:
             ),
             results=ranked,
             summary=summary,
+            product_slug=self._slug_for_variant(source_row.get("variant_id")),
         )
+
+    def _slug_for_variant(self, variant_id: Any) -> str | None:
+        if variant_id is None:
+            return None
+        try:
+            variant = self._store.get("product_variants", variant_id)
+            return str(self._store.get("products", variant["product_id"])["slug"])
+        except RowNotFound:
+            return None
 
     def _marketplace_id_map(self) -> dict[MarketplaceCode, Any]:
         self._marketplace_id(MarketplaceCode.AMAZON_IN)
