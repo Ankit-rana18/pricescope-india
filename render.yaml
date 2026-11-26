@@ -1,0 +1,66 @@
+# Render Blueprint for the PriceScope India API + Postgres.
+# The frontend deploys to Vercel (frontend/vercel.json). Step-by-step: docs/DEPLOYMENT.md.
+#
+# Free plans are used so a first deploy costs nothing. Their limits (Render docs, Nov 2026):
+# - free web services spin down after 15 idle minutes (about a minute to wake up);
+# - free Postgres has 1 GB, no backups, and EXPIRES 30 days after creation.
+# Move both to paid plans in the Render dashboard before relying on this deployment.
+
+services:
+  - type: web
+    name: pricescope-api
+    runtime: docker
+    region: singapore # closest Render region to India
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    # Migrations run on every start (idempotent). preDeployCommand would be cleaner but is
+    # only available on paid plans.
+    dockerCommand: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-server-header"
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: PRICESCOPE_ENV
+        value: production
+      - key: PRICESCOPE_LOG_LEVEL
+        value: INFO
+      # Demo adapters stay on until approved marketplace APIs are connected. Every demo
+      # result is labelled DEMO in the API and the UI.
+      - key: PRICESCOPE_DEMO_MODE
+        value: "true"
+      - key: PRICESCOPE_STORAGE_BACKEND
+        value: postgres
+      - key: PRICESCOPE_DATABASE_URL
+        fromDatabase:
+          name: pricescope-db
+          property: connectionString
+      - key: PRICESCOPE_TASK_EXECUTOR
+        value: threads
+      - key: PRICESCOPE_AUTH_MODE
+        value: supabase
+      - key: PRICESCOPE_SUPABASE_URL # https://<project-ref>.supabase.co
+        sync: false
+      - key: PRICESCOPE_CORS_ORIGINS # your Vercel URL(s), comma-separated
+        sync: false
+      - key: PRICESCOPE_ADMIN_EMAILS # becomes admin on first sign-in
+        sync: false
+      # Rate limits: one instance, so the in-memory limiter is exact.
+      - key: PRICESCOPE_RATE_LIMIT_BACKEND
+        value: memory
+      - key: PRICESCOPE_RATE_LIMIT_SALT
+        generateValue: true
+      # How many proxies append to X-Forwarded-For in front of the app. Left at 0 (ignore
+      # the header) until verified; see "Client IPs" in docs/DEPLOYMENT.md.
+      - key: PRICESCOPE_TRUSTED_PROXY_HOPS
+        value: "0"
+
+databases:
+  - name: pricescope-db
+    databaseName: pricescope
+    user: pricescope
+    region: singapore
+    plan: free
+    postgresMajorVersion: "16"
+    ipAllowList: [] # reachable only from Render services in this workspace

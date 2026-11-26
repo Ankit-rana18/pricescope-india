@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.api.v1.products import get_catalog
 from app.core.auth import User, to_current_user
 from app.core.errors import ErrorResponse, NotFoundError
+from app.core.ratelimit import Bucket, rate_limit
 from app.models.enums import UserRole
 from app.services.catalog import CatalogService
 from app.services.comparison.evaluate import name_of
@@ -76,7 +77,12 @@ def get_me(user: User, catalog: Catalog) -> MeView:
     return _me(catalog.store.get("users", user.id))
 
 
-@router.patch("/me", response_model=MeView, summary="Update your profile and saved cards")
+@router.patch(
+    "/me",
+    dependencies=[Depends(rate_limit(Bucket.WRITE))],
+    response_model=MeView,
+    summary="Update your profile and saved cards",
+)
 def update_me(body: MeUpdate, user: User, catalog: Catalog) -> MeView:
     changes: dict[str, Any] = {}
     fields = body.model_fields_set
@@ -215,6 +221,7 @@ def list_saved(user: User, catalog: Catalog) -> list[SavedView]:
 
 @router.post(
     "/saved-products",
+    dependencies=[Depends(rate_limit(Bucket.WRITE))],
     response_model=SavedView,
     status_code=201,
     summary="Save a product",
@@ -242,7 +249,11 @@ def save_product(body: SavedCreate, response: Response, user: User, catalog: Cat
 
 
 @router.delete(
-    "/saved-products/{saved_id}", status_code=204, summary="Remove a saved product", responses=_404
+    "/saved-products/{saved_id}",
+    dependencies=[Depends(rate_limit(Bucket.WRITE))],
+    status_code=204,
+    summary="Remove a saved product",
+    responses=_404,
 )
 def delete_saved(saved_id: uuid.UUID, user: User, catalog: Catalog) -> Response:
     _owned(catalog, "saved_products", saved_id, user.id)
@@ -304,6 +315,7 @@ def list_alerts(user: User, catalog: Catalog) -> list[AlertView]:
 
 @router.post(
     "/alerts",
+    dependencies=[Depends(rate_limit(Bucket.WRITE))],
     response_model=AlertView,
     status_code=201,
     summary="Create a price-drop alert",
@@ -329,6 +341,7 @@ def create_alert(body: AlertCreate, user: User, catalog: Catalog) -> AlertView:
 
 @router.patch(
     "/alerts/{alert_id}",
+    dependencies=[Depends(rate_limit(Bucket.WRITE))],
     response_model=AlertView,
     summary="Change or pause an alert",
     responses=_404,
@@ -344,7 +357,13 @@ def update_alert(alert_id: uuid.UUID, body: AlertUpdate, user: User, catalog: Ca
     return _alert_view(catalog, row)
 
 
-@router.delete("/alerts/{alert_id}", status_code=204, summary="Delete an alert", responses=_404)
+@router.delete(
+    "/alerts/{alert_id}",
+    dependencies=[Depends(rate_limit(Bucket.WRITE))],
+    status_code=204,
+    summary="Delete an alert",
+    responses=_404,
+)
 def delete_alert(alert_id: uuid.UUID, user: User, catalog: Catalog) -> Response:
     _owned(catalog, "price_alerts", alert_id, user.id)
     catalog.store.delete("price_alerts", alert_id)

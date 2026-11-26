@@ -128,6 +128,14 @@ export const admin = {
         latency_ms: number | null;
       }[]
     >("/api/v1/admin/errors", { cache: "no-store" }),
+  requestInfo: () =>
+    apiFetch<{
+      peer: string | null;
+      forwarded_for: string[];
+      trusted_proxy_hops: number;
+      client_ip_used: string;
+      note: string;
+    }>("/api/v1/admin/request-info", { cache: "no-store" }),
   audit: () =>
     apiFetch<
       {

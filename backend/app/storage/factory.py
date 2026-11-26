@@ -1,8 +1,7 @@
 """Select the storage backend from settings (dependency-injection entry point)."""
 
-from functools import lru_cache
-
 from app.core.config import Settings, StorageBackendName, get_settings
+from app.core.singleton import once
 from app.storage.base import TableStore
 from app.storage.errors import StorageNotConfigured
 
@@ -27,7 +26,7 @@ def build_store(settings: Settings) -> TableStore:
     )
 
 
-@lru_cache
+@once
 def _cached_store() -> TableStore:
     return build_store(get_settings())
 

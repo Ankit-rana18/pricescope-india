@@ -29,6 +29,7 @@ dev = [
   "httpx>=0.28",
   "ruff>=0.8",
   "mypy>=1.13",
+  "pytest-cov>=6",
 ]
 
 [tool.uv]
@@ -71,3 +72,12 @@ ignore_missing_imports = true
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
 known-third-party = ["alembic"]
+
+[tool.coverage.run]
+source = ["app", "../integrations/pricescope_integrations"]
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = false
+exclude_also = ['if TYPE_CHECKING:', 'raise NotImplementedError', '^\s*\.\.\.$']

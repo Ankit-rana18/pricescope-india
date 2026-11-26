@@ -13,8 +13,9 @@ import csv
 import re
 from dataclasses import dataclass, field
 from enum import StrEnum
-from functools import lru_cache
 from pathlib import Path
+
+from app.core.singleton import once
 
 PINCODE_RE = re.compile(r"^[1-9][0-9]{5}$")
 
@@ -145,7 +146,7 @@ class PincodeDirectory:
         return self.entries.get(pincode, [])
 
 
-@lru_cache
+@once
 def load_directory(path: str) -> PincodeDirectory:
     if not path:
         return PincodeDirectory()

@@ -136,3 +136,15 @@ describe("ProductActions", () => {
     });
   });
 });
+
+describe("token on first load", () => {
+  it("sends the token with the very first request a page makes on mount", async () => {
+    window.localStorage.setItem("pricescope:dev-token", "dev:asha@example.com");
+    mockApi(ME);
+    const { ComparisonView } = await import("@/components/compare/comparison-view");
+    withAuth(<ComparisonView id="c-1" />);
+    await waitFor(() => expect(calls.some((c) => c.url.includes("/comparisons/c-1"))).toBe(true));
+    const first = calls.find((c) => c.url.includes("/comparisons/c-1"));
+    expect(first?.auth).toBe("Bearer dev:asha@example.com");
+  });
+});

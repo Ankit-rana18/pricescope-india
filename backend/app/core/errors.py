@@ -40,6 +40,7 @@ class AppError(Exception):
         code: str | None = None,
         status_code: int | None = None,
         details: Any | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         super().__init__(message)
         self.message = message
@@ -48,6 +49,7 @@ class AppError(Exception):
         if status_code:
             self.status_code = status_code
         self.details = details
+        self.headers = headers or {}
 
 
 class NotFoundError(AppError):
@@ -72,7 +74,9 @@ def _envelope(
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(request: Request, exc: AppError) -> JSONResponse:
-        return _envelope(request, exc.status_code, exc.code, exc.message, exc.details)
+        response = _envelope(request, exc.status_code, exc.code, exc.message, exc.details)
+        response.headers.update(exc.headers)
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def _validation(request: Request, exc: RequestValidationError) -> JSONResponse:

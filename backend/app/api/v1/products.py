@@ -1,11 +1,11 @@
 """Public product, price-history, category and sitemap endpoints (read-only)."""
 
-from functools import lru_cache
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
 
 from app.core.errors import ErrorResponse, NotFoundError
+from app.core.singleton import once
 from app.models.enums import DataMode, MarketplaceCode
 from app.schemas.products import (
     CategoryProductsView,
@@ -29,7 +29,7 @@ router = APIRouter(tags=["products"])
 _NOT_FOUND: dict[int | str, dict[str, Any]] = {404: {"model": ErrorResponse}}
 
 
-@lru_cache
+@once
 def get_catalog() -> CatalogService:
     return CatalogService(get_store())
 

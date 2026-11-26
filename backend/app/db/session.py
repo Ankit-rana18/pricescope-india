@@ -1,15 +1,15 @@
 """Database engine and session dependency."""
 
 from collections.abc import Iterator
-from functools import lru_cache
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
+from app.core.singleton import once
 
 
-@lru_cache
+@once
 def get_engine() -> Engine:
     settings = get_settings()
     return create_engine(
@@ -21,7 +21,7 @@ def get_engine() -> Engine:
     )
 
 
-@lru_cache
+@once
 def get_sessionmaker() -> sessionmaker[Session]:
     return sessionmaker(bind=get_engine(), autoflush=False, expire_on_commit=False)
 

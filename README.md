@@ -26,7 +26,7 @@ pack count and variant) with transparent final prices.
 | 6 | PIN area from the India Post directory, published fee policies (estimated fees), location checks saved | ✅ done |
 | 7 | Dashboard filters/sort, retry failed marketplaces, refresh, data-source panel, price-history charts, product & category pages, sitemap (demo pages never indexed) | ✅ done |
 | 8 | Sign-in (Supabase magic link; labelled dev sign-in locally), private comparisons, history, saved products, price alerts (in-app; email not set up), your cards for personalised card offers, admin dashboard + audit log | ✅ done |
-| 9 | See the implementation plan | pending |
+| 9 | Rate limits (per user / hashed IP, 429 + Retry-After), request-size cap, security headers + CSP, sign-up audit, thread-safe singletons, Render + Vercel deploy config, dependency audits, coverage, load check | ✅ done |
 
 ## Repository layout
 
@@ -84,8 +84,30 @@ cd backend; uv run ruff check app alembic ../tests; uv run mypy; uv run pytest
 cd frontend; npm run lint; npm run typecheck; npm test; npm run build
 ```
 
+Coverage, dependency audits and a load check (the last one needs a running API in demo mode):
+
+```powershell
+cd backend; uv run pytest --cov --cov-report=html:../coverage-html
+```
+
+```powershell
+cd backend; uv export --frozen --no-dev --no-emit-project --no-hashes > $env:TEMPeq.txt; uvx pip-audit -r $env:TEMPeq.txt
+```
+
+```powershell
+cd frontend; npm audit --omit=dev
+```
+
+```powershell
+cd backend; uv run python ../scripts/load_check.py --base http://127.0.0.1:8000
+```
+
 Storage tests run against an in-memory fake spreadsheet, so they need no Google account. Tests marked `db` create and drop a throwaway database on the configured PostgreSQL server,
 so your development data is never touched. They are skipped if PostgreSQL is unreachable.
+
+## Deployment
+
+Render (API + Postgres) and Vercel (frontend): see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Database migrations
 

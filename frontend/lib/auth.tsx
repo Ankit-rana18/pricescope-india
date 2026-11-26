@@ -59,6 +59,11 @@ async function currentToken(): Promise<string | null> {
   return readDevToken();
 }
 
+// Register at module load, not in an effect: React runs child effects before parent
+// ones, so a page fetching on mount would otherwise send its first request without the
+// token (and a private comparison would come back as "not found").
+if (typeof window !== "undefined") setAuthTokenProvider(currentToken);
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,15 +92,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setAuthTokenProvider(currentToken);
     void refresh();
     const client = getSupabase();
-    if (!client) return () => setAuthTokenProvider(null);
+    if (!client) return;
     const { data } = client.auth.onAuthStateChange(() => void refresh());
-    return () => {
-      data.subscription.unsubscribe();
-      setAuthTokenProvider(null);
-    };
+    return () => data.subscription.unsubscribe();
   }, [refresh]);
 
   const signIn = useCallback(

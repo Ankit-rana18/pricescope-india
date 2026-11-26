@@ -1,6 +1,6 @@
 # PriceScope India — Implementation Plan
 
-Status: **Phases 1–8 complete** (2026-11-25). Phase 9 pending. Storage is Google Sheets for now (see docs/STORAGE.md).
+Status: **Phases 1–9 complete** (2026-11-25). Deployment steps: docs/DEPLOYMENT.md. Storage is Google Sheets for now (see docs/STORAGE.md).
 
 ## 0. Repository inspection
 

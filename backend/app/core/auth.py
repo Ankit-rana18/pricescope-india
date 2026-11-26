@@ -18,7 +18,6 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from functools import lru_cache
 from http import HTTPStatus
 from typing import Annotated, Any, ClassVar, Protocol
 
@@ -28,7 +27,9 @@ from fastapi import Depends, Request
 
 from app.core.config import AuthMode, Settings, get_settings
 from app.core.errors import AppError
+from app.core.singleton import once
 from app.models.enums import UserRole
+from app.services.audit import audit
 from app.storage.base import TableStore
 from app.storage.errors import RowNotFound
 from app.storage.factory import get_store
@@ -148,7 +149,7 @@ class DevVerifier:
         return Identity(uuid.uuid5(_DEV_NAMESPACE, email), email)
 
 
-@lru_cache
+@once
 def get_verifier() -> TokenVerifier:
     settings = get_settings()
     if settings.auth_mode is AuthMode.SUPABASE:
@@ -179,6 +180,16 @@ class UserDirectory:
                 },
             )
             log.info("user_created", user_id=str(identity.user_id), role=str(row["role"]))
+            audit(
+                self._store,
+                "user_created",
+                actor_id=identity.user_id,
+                target=f"user:{identity.user_id}",
+                metadata={
+                    "role": str(row["role"]),
+                    "admin_by_config": row["role"] == UserRole.ADMIN,
+                },
+            )
         else:
             self._touch(row)
         return to_current_user(row)
@@ -207,7 +218,7 @@ def to_current_user(row: dict[str, Any]) -> CurrentUser:
     )
 
 
-@lru_cache
+@once
 def get_user_directory() -> UserDirectory:
     return UserDirectory(get_store(), get_settings().admin_emails)
 

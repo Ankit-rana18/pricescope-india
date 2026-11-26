@@ -7,7 +7,8 @@ from app.api.v1 import account, admin, comparisons, health, lookup, products
 from app.core.config import Settings, get_settings
 from app.core.errors import ErrorResponse, register_exception_handlers
 from app.core.logging import configure_logging
-from app.core.middleware import RequestContextMiddleware
+from app.core.middleware import BodySizeLimitMiddleware, RequestContextMiddleware
+from app.core.ratelimit import build_limiter
 
 API_V1 = "/api/v1"
 
@@ -30,6 +31,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         responses={422: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
     )
 
+    # Starlette runs the last-added middleware first. Order, outermost first: CORS (so even
+    # 413/429 errors carry CORS headers the browser can read), request context + security
+    # headers, then the body-size cap before any endpoint reads the body.
+    app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_body_bytes)
+    app.add_middleware(RequestContextMiddleware, hsts=settings.is_production)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -38,7 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
         expose_headers=["X-Request-ID", "Retry-After"],
     )
-    app.add_middleware(RequestContextMiddleware)
+    app.state.limiter = build_limiter(settings)
     register_exception_handlers(app)
     # Endpoints must see the settings this app was built with, not a fresh global copy.
     app.dependency_overrides[get_settings] = lambda: settings

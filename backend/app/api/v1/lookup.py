@@ -1,6 +1,5 @@
 """Product-link and PIN-code checks. No marketplace is contacted."""
 
-from functools import lru_cache
 from http import HTTPStatus
 from typing import Annotated, Any
 
@@ -8,6 +7,8 @@ from fastapi import APIRouter, Depends
 
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError, ErrorResponse
+from app.core.ratelimit import Bucket, rate_limit
+from app.core.singleton import once
 from app.schemas.lookup import (
     FieldError,
     LookupRequest,
@@ -60,7 +61,7 @@ def get_pincode_directory(
 Directory = Annotated[PincodeDirectory, Depends(get_pincode_directory)]
 
 
-@lru_cache
+@once
 def get_link_resolver() -> SafeRedirectResolver:
     return SafeRedirectResolver(all_link_hosts())
 
@@ -95,6 +96,7 @@ def _product_result(parsed: ParsedProductUrl) -> ProductLinkResult:
 
 @router.post(
     "/location/validate",
+    dependencies=[Depends(rate_limit(Bucket.LOOKUP))],
     response_model=PincodeResult,
     summary="Validate a 6-digit Indian PIN code",
     responses=_ERRORS,
@@ -110,6 +112,7 @@ def validate_location(body: PincodeRequest, directory: Directory) -> PincodeResu
 
 @router.post(
     "/lookups/validate",
+    dependencies=[Depends(rate_limit(Bucket.LOOKUP))],
     response_model=LookupResult,
     summary="Check a product link and PIN code before comparing",
     description="Recognises the marketplace and product ID from the link and validates the "

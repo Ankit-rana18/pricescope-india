@@ -6,13 +6,15 @@ from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 
 from app.api.v1.comparisons import Service
 from app.api.v1.products import get_catalog
 from app.core.auth import Admin
+from app.core.config import Settings, get_settings
 from app.core.errors import AppError, ErrorResponse, NotFoundError
+from app.core.ratelimit import client_ip
 from app.models.enums import UserRole
 from app.services.audit import audit
 from app.services.catalog import CatalogService
@@ -310,3 +312,37 @@ def audit_log(
         )
         for r in rows
     ]
+
+
+class RequestInfo(BaseModel):
+    peer: str | None
+    forwarded_for: list[str]
+    trusted_proxy_hops: int
+    client_ip_used: str
+    note: str
+
+
+@router.get(
+    "/request-info",
+    response_model=RequestInfo,
+    responses=_ERR,
+    summary="How the API sees your connection (to set PRICESCOPE_TRUSTED_PROXY_HOPS)",
+    description="Shows the proxy chain for this request only. Nothing is stored or logged.",
+)
+def request_info(
+    _: Admin, request: Request, settings: Annotated[Settings, Depends(get_settings)]
+) -> RequestInfo:
+    forwarded = [
+        p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()
+    ]
+    return RequestInfo(
+        peer=request.client.host if request.client else None,
+        forwarded_for=forwarded,
+        trusted_proxy_hops=settings.trusted_proxy_hops,
+        client_ip_used=client_ip(request, settings.trusted_proxy_hops),
+        note=(
+            "client_ip_used should be your own public IP. If it is a proxy address, count "
+            "the entries from the right of forwarded_for up to your IP and set "
+            "PRICESCOPE_TRUSTED_PROXY_HOPS to that number."
+        ),
+    )

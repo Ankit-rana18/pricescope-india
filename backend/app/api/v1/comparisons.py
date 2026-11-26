@@ -1,6 +1,5 @@
 """Comparisons and marketplace status."""
 
-from functools import lru_cache
 from typing import Annotated
 
 import structlog
@@ -13,6 +12,8 @@ from app.api.v1.lookup import Directory, InvalidInput, LinkResolver
 from app.core.auth import CurrentUser, OptionalUser
 from app.core.config import Settings, TaskExecutor, get_settings
 from app.core.errors import ErrorResponse, NotFoundError
+from app.core.ratelimit import Bucket, rate_limit
+from app.core.singleton import once
 from app.models.enums import DataMode, MarketplaceCode
 from app.schemas.comparison import (
     ComparisonRequest,
@@ -56,7 +57,7 @@ def build_reviewer(settings: Settings) -> MatchReviewer | None:
     return CachedReviewer(reviewer)
 
 
-@lru_cache
+@once
 def get_comparison_service() -> ComparisonService:
     settings = get_settings()
     config = settings.integration_config()
@@ -88,6 +89,7 @@ Service = Annotated[ComparisonService, Depends(get_comparison_service)]
 
 @router.post(
     "/comparisons",
+    dependencies=[Depends(rate_limit(Bucket.COMPARE))],
     response_model=ComparisonView,
     status_code=202,
     summary="Start a comparison for a product link and PIN code",
@@ -154,6 +156,7 @@ class RetryRequest(BaseModel):
 
 @router.post(
     "/comparisons/{comparison_id}/retry",
+    dependencies=[Depends(rate_limit(Bucket.COMPARE))],
     response_model=ComparisonView,
     status_code=202,
     summary="Re-check failed marketplaces of a finished comparison",
@@ -171,6 +174,7 @@ def retry_comparison(
 
 @router.post(
     "/comparisons/{comparison_id}/refresh",
+    dependencies=[Depends(rate_limit(Bucket.COMPARE))],
     response_model=ComparisonView,
     status_code=202,
     summary="Run a fresh comparison of the same product and PIN code",

@@ -355,3 +355,21 @@ def test_role_changes_are_audited_and_self_demotion_refused(env: Env) -> None:
         ).status_code
         == 403
     )
+
+
+def test_first_sign_in_is_audited_once(env: Env) -> None:
+    for _ in range(2):
+        env.c.get("/api/v1/me", headers=ASHA)
+    env.c.get("/api/v1/me", headers=ADMIN)
+    created = [r for r in env.store.find("audit_logs") if r["action"] == "user_created"]
+    assert sorted(r["metadata"]["role"] for r in created) == ["admin", "user"]
+    assert all("ip" not in r["metadata"] for r in created)
+
+
+def test_request_info_is_admin_only_and_reports_the_proxy_chain(env: Env) -> None:
+    headers = {**ADMIN, "X-Forwarded-For": "203.0.113.9, 10.0.0.1"}
+    assert env.c.get("/api/v1/admin/request-info", headers=ASHA).status_code == 403
+    info = env.c.get("/api/v1/admin/request-info", headers=headers).json()
+    assert info["forwarded_for"] == ["203.0.113.9", "10.0.0.1"]
+    assert info["trusted_proxy_hops"] == 0
+    assert info["client_ip_used"] == info["peer"]  # header ignored until hops are set

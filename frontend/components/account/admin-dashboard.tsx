@@ -17,6 +17,7 @@ type Awaited2<T> = T extends Promise<infer U> ? U : never;
 type Activity = Awaited2<ReturnType<typeof admin.activity>>;
 type Errors = Awaited2<ReturnType<typeof admin.errors>>;
 type Audit = Awaited2<ReturnType<typeof admin.audit>>;
+type RequestInfo = Awaited2<ReturnType<typeof admin.requestInfo>>;
 
 const DATE = new Intl.DateTimeFormat("en-IN", {
   day: "numeric",
@@ -79,6 +80,7 @@ interface Data {
   activity: Activity;
   errors: Errors;
   audit: Audit;
+  connection: RequestInfo;
 }
 
 function Dashboard({ me }: { me: Me }) {
@@ -90,15 +92,25 @@ function Dashboard({ me }: { me: Me }) {
     setBusy(true);
     setError(null);
     try {
-      const [overview, integrations, users, activity, errors, audit] = await Promise.all([
-        admin.overview(),
-        admin.integrations(),
-        admin.users(),
-        admin.activity(),
-        admin.errors(),
-        admin.audit(),
-      ]);
-      setData({ overview, integrations, users: users.items, activity, errors, audit });
+      const [overview, integrations, users, activity, errors, audit, connection] =
+        await Promise.all([
+          admin.overview(),
+          admin.integrations(),
+          admin.users(),
+          admin.activity(),
+          admin.errors(),
+          admin.audit(),
+          admin.requestInfo(),
+        ]);
+      setData({
+        overview,
+        integrations,
+        users: users.items,
+        activity,
+        errors,
+        audit,
+        connection,
+      });
     } catch (err) {
       setError(err instanceof ApiError ? err.body.message : "Couldn't load the dashboard.");
     } finally {
@@ -237,6 +249,20 @@ function Dashboard({ me }: { me: Me }) {
         ) : (
           <p className="text-muted-foreground text-sm">No comparisons yet.</p>
         )}
+      </Section>
+
+      <Section title="Your connection (rate-limit check)">
+        <div className="bg-card flex flex-col gap-1 rounded-2xl border p-4 text-sm">
+          <p>
+            Rate limits key anonymous visitors on{" "}
+            <span className="font-mono">{data.connection.client_ip_used}</span>{" "}
+            <span className="text-muted-foreground">
+              (proxy hops trusted: {data.connection.trusted_proxy_hops}; X-Forwarded-For:{" "}
+              {data.connection.forwarded_for.join(", ") || "none"})
+            </span>
+          </p>
+          <p className="text-muted-foreground text-xs">{data.connection.note}</p>
+        </div>
       </Section>
 
       <Section title="Recent marketplace errors">
